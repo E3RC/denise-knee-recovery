@@ -4,6 +4,12 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "17 12 * * *"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/publish-family-updates.yml"
+      - "scripts/sync_family_updates.py"
 
 permissions:
   contents: write
