@@ -1,0 +1,15 @@
+{
+  "privacy": "Template only. Do not commit Denise's real medication schedule, doses, or exact medication timing unless intentionally making a private repo and accepting the risk.",
+  "medications": [
+    {
+      "name": "Example Medication",
+      "dose": "Example dose from bottle label",
+      "purpose": "Pain / clot prevention / nausea / constipation / antibiotic / stomach protection",
+      "scheduleType": "scheduled or as-needed",
+      "directions": "Copy exact bottle-label directions here in the private tracker only",
+      "startRule": "After discharge / morning after surgery / as directed",
+      "stopRule": "Until gone / X days / as directed",
+      "notes": "Food, drowsiness, max daily dose, do-not-overlap notes"
+    }
+  ]
+}
