@@ -1,0 +1,23 @@
+{
+  "privacy": "Template only. Put real Pushover tokens in GitHub Secrets, never in this file.",
+  "secretsNeeded": [
+    "PUSHOVER_USER_KEY",
+    "PUSHOVER_APP_TOKEN"
+  ],
+  "reminders": [
+    {
+      "name": "Morning recovery check",
+      "type": "daily",
+      "time": "08:00",
+      "timezone": "America/Indiana/Indianapolis",
+      "message": "Log pain, meds, ice, steps, incision, hydration, and bathroom notes."
+    },
+    {
+      "name": "Evening recovery log",
+      "type": "daily",
+      "time": "20:00",
+      "timezone": "America/Indiana/Indianapolis",
+      "message": "Finish the daily log and list questions for PT or the surgeon."
+    }
+  ]
+}
