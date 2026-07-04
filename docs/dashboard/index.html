@@ -4,6 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Denise Recovery Dashboard</title>
+  <meta name="theme-color" content="#0f766e" />
+  <link rel="manifest" href="manifest.webmanifest" />
   <link rel="stylesheet" href="dashboard.css" />
 </head>
 <body>
@@ -39,6 +41,23 @@
     </section>
 
     <section class="grid">
+      <section class="card wide" id="safety-and-contacts">
+        <div class="panel-grid">
+          <article class="panel">
+            <h2>Safety</h2>
+            <p class="small">Not medical advice. Use only surgeon and pharmacy instructions for medication timing and dosing. Call the surgeon or emergency services if you are worried about urgent symptoms.</p>
+            <p class="small">This dashboard is a caregiver tool, not a replacement for clinical instructions.</p>
+          </article>
+          <article class="panel">
+            <div class="section-head">
+              <h2>Contacts</h2>
+              <button id="save-contacts" class="ghost" type="button">Save contacts</button>
+            </div>
+            <form id="contacts-form" class="stack"></form>
+          </article>
+        </div>
+      </section>
+
       <section class="card wide">
         <div class="section-head">
           <h2>Today</h2>
@@ -96,13 +115,20 @@
       </section>
 
       <section class="card">
-        <h2>Medication Log</h2>
-        <div id="med-log" class="stack"></div>
+        <div class="section-head">
+          <h2>Medication Templates</h2>
+          <button id="save-medications" class="ghost" type="button">Save meds</button>
+        </div>
+        <form id="medication-form" class="stack"></form>
       </section>
 
       <section class="card">
-        <h2>Timeline</h2>
-        <div id="timeline" class="stack"></div>
+        <div class="section-head">
+          <h2>Milestones</h2>
+          <button id="add-milestone" class="ghost" type="button">Add milestone</button>
+        </div>
+        <div id="milestones" class="stack"></div>
+        <div class="small">Milestones keep a simple completion history with timestamps.</div>
       </section>
 
       <section class="card">
