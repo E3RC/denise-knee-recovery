@@ -12,22 +12,74 @@ const CHECKLIST = [
   'Bowel movements'
 ];
 
-const SAMPLE = {
-  surgeryDate: SURGERY_DATE,
-  meds: [],
-  timeline: [
-    { type: 'Surgery day', text: 'Surgery scheduled for Monday morning.', at: new Date().toISOString() }
-  ],
+// Seed/default content stays separate from user-entered logs so the state can
+// grow without turning the dashboard into one giant mixed object.
+const SEED = {
+  patient: {
+    name: 'Denise',
+    caregiver: 'Brent Soper',
+    procedure: 'Total knee replacement',
+    surgeryDate: SURGERY_DATE
+  },
   equipment: [
     { text: 'Drive Medical 10210-1 walker', ready: true },
     { text: 'Pulsar Flow automated cold therapy', ready: true },
     { text: 'Built-in shower seat', ready: true },
     { text: 'Elevated bidet toilet seats', ready: true }
   ],
-  notes: [],
-  activityLog: [],
-  checklist: CHECKLIST.map(id => ({ id, done: false, at: null }))
+  contacts: [
+    { label: 'Surgeon', value: 'Add surgeon contact' },
+    { label: 'Hospital', value: 'Add hospital contact' },
+    { label: 'Pharmacy', value: 'Add pharmacy contact' },
+    { label: 'Physical therapy', value: 'Add PT contact' }
+  ],
+  medicationTemplates: [
+    {
+      name: 'Prescription placeholder',
+      dose: 'Use discharge instructions',
+      scheduled: true,
+      dueTime: 'TBD',
+      givenTime: '',
+      givenBy: '',
+      notes: 'Neutral placeholder until Brent adds actual bottle details.'
+    }
+  ],
+  milestoneTemplates: [
+    'Surgery complete',
+    'First walk',
+    'First stairs',
+    'First shower',
+    'First PT session',
+    'First bowel movement',
+    'Transition to cane',
+    'Off narcotics',
+    '90° flexion',
+    '110° flexion',
+    'Full extension',
+    'Six-week follow-up'
+  ],
+  timelineSeed: [
+    { type: 'Surgery day', text: 'Surgery scheduled for Monday morning.', at: new Date().toISOString() }
+  ]
 };
+
+function createDefaultState() {
+  return {
+    patient: structuredClone(SEED.patient),
+    surgeryDate: SURGERY_DATE,
+    contacts: structuredClone(SEED.contacts),
+    medicationTemplates: structuredClone(SEED.medicationTemplates),
+    milestoneTemplates: structuredClone(SEED.milestoneTemplates),
+    meds: [],
+    timeline: structuredClone(SEED.timelineSeed),
+    equipment: structuredClone(SEED.equipment),
+    notes: [],
+    activityLog: [],
+    checklist: CHECKLIST.map(id => ({ id, done: false, at: null }))
+  };
+};
+
+const DEFAULT_STATE = createDefaultState();
 
 const els = {
   day: document.getElementById('recovery-day'),
@@ -40,12 +92,12 @@ const els = {
   timeline: document.getElementById('timeline'),
   equipment: document.getElementById('equipment'),
   notes: document.getElementById('notes'),
+  contacts: document.getElementById('contacts'),
   nextTask: document.getElementById('next-task'),
   followUpSummary: document.getElementById('follow-up-summary'),
   form: document.getElementById('event-form'),
   reset: document.getElementById('reset-demo'),
   exportJson: document.getElementById('export-json'),
-  exportCsv: document.getElementById('export-csv'),
   importJson: document.getElementById('import-json'),
   copySummary: document.getElementById('copy-summary'),
   printSummary: document.getElementById('print-summary')
@@ -58,7 +110,7 @@ function loadState() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) return normalizeState(JSON.parse(raw));
   } catch {}
-  return structuredClone(SAMPLE);
+  return structuredClone(DEFAULT_STATE);
 }
 
 function saveState() {
@@ -104,17 +156,21 @@ async function importState(file) {
 }
 
 function normalizeState(next) {
-  const merged = { ...structuredClone(SAMPLE), ...next };
+  const merged = { ...structuredClone(DEFAULT_STATE), ...next };
+  merged.patient = { ...DEFAULT_STATE.patient, ...(next?.patient || {}) };
   merged.checklist = Array.isArray(next?.checklist)
     ? next.checklist.map(item => ({
         id: String(item.id || ''),
         done: Boolean(item.done),
         at: item.at || null
       })).filter(item => item.id)
-    : structuredClone(SAMPLE.checklist);
+    : structuredClone(DEFAULT_STATE.checklist);
+  merged.contacts = Array.isArray(next?.contacts) ? next.contacts : structuredClone(DEFAULT_STATE.contacts);
+  merged.medicationTemplates = Array.isArray(next?.medicationTemplates) ? next.medicationTemplates : structuredClone(DEFAULT_STATE.medicationTemplates);
+  merged.milestoneTemplates = Array.isArray(next?.milestoneTemplates) ? next.milestoneTemplates : structuredClone(DEFAULT_STATE.milestoneTemplates);
   merged.meds = Array.isArray(next?.meds) ? next.meds : [];
   merged.timeline = Array.isArray(next?.timeline) ? next.timeline : [];
-  merged.equipment = Array.isArray(next?.equipment) ? next.equipment : structuredClone(SAMPLE.equipment);
+  merged.equipment = Array.isArray(next?.equipment) ? next.equipment : structuredClone(DEFAULT_STATE.equipment);
   merged.notes = Array.isArray(next?.notes) ? next.notes : [];
   merged.activityLog = Array.isArray(next?.activityLog) ? next.activityLog : [];
   merged.surgeryDate = typeof next?.surgeryDate === 'string' ? next.surgeryDate : SURGERY_DATE;
@@ -147,6 +203,7 @@ function render() {
   els.surgeryDate.value = state.surgeryDate || SURGERY_DATE;
   els.day.textContent = `Day ${recoveryDay()}`;
   els.countdown.textContent = countdownText();
+  els.contacts.innerHTML = renderContacts();
   els.today.innerHTML = renderTodayTasks();
   els.checklist.innerHTML = state.checklist.map(renderChecklist).join('');
   els.nextTask.innerHTML = renderNextTask();
@@ -162,17 +219,6 @@ function render() {
       </div>
     </div>`).join('');
   els.notes.innerHTML = state.notes.length ? state.notes.slice().reverse().map(renderEntry).join('') : empty('No notes yet.');
-}
-
-function renderTodayTasks() {
-  const tasks = deriveTodayTasks();
-  return tasks.map(task => `<div class="item">${escapeHtml(task)}</div>`).join('');
-}
-
-function deriveTodayTasks() {
-  const tasks = ['Recovery medication check', 'Hydration', 'Walk', 'Ice & compression', 'Exercises', 'Rest & elevate'];
-  const completed = new Set(state.checklist.filter(item => item.done).map(item => item.id));
-  return tasks.filter(task => !completed.has(task));
 }
 
 function renderChecklist(item, index) {
@@ -203,6 +249,26 @@ function renderNextTask() {
     </div>
     <p class="small">Add the next event, note, or follow-up as needed.</p>
   `;
+}
+
+function renderContacts() {
+  return state.contacts.map(item => `
+    <div class="contact-item">
+      <strong>${escapeHtml(item.label)}</strong>
+      <span class="small">${escapeHtml(item.value)}</span>
+    </div>
+  `).join('');
+}
+
+function renderTodayTasks() {
+  const tasks = deriveTodayTasks();
+  return tasks.map(task => `<div class="item">${escapeHtml(task)}</div>`).join('');
+}
+
+function deriveTodayTasks() {
+  const tasks = ['Recovery medication check', 'Hydration', 'Walk', 'Ice & compression', 'Exercises', 'Rest & elevate'];
+  const completed = new Set(state.checklist.filter(item => item.done).map(item => item.id));
+  return tasks.filter(task => !completed.has(task));
 }
 
 function buildFollowUpSummary() {
@@ -295,7 +361,7 @@ els.form.addEventListener('submit', (event) => {
 
 els.reset.addEventListener('click', () => {
   localStorage.removeItem(STORAGE_KEY);
-  state = structuredClone(SAMPLE);
+  state = structuredClone(DEFAULT_STATE);
   saveState();
   render();
 });
@@ -331,5 +397,11 @@ els.importJson.addEventListener('change', async () => {
     els.importJson.value = '';
   }
 });
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(error => {
+    console.warn('Service worker registration failed', error);
+  });
+}
 
 render();
