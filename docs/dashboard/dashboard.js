@@ -12,22 +12,75 @@ const CHECKLIST = [
   'Bowel movements'
 ];
 
-const SAMPLE = {
-  surgeryDate: SURGERY_DATE,
-  meds: [],
-  timeline: [
-    { type: 'Surgery day', text: 'Surgery scheduled for Monday morning.', at: new Date().toISOString() }
-  ],
+// Seed/default content stays separate from user-entered logs so the state can
+// grow without turning the dashboard into one giant mixed object.
+const SEED = {
+  patient: {
+    name: 'Denise',
+    caregiver: 'Brent Soper',
+    procedure: 'Total knee replacement',
+    surgeryDate: SURGERY_DATE
+  },
   equipment: [
     { text: 'Drive Medical 10210-1 walker', ready: true },
     { text: 'Pulsar Flow automated cold therapy', ready: true },
     { text: 'Built-in shower seat', ready: true },
     { text: 'Elevated bidet toilet seats', ready: true }
   ],
-  notes: [],
-  activityLog: [],
-  checklist: CHECKLIST.map(id => ({ id, done: false, at: null }))
+  contacts: [
+    { label: 'Surgeon', value: 'Add surgeon contact' },
+    { label: 'Hospital', value: 'Add hospital contact' },
+    { label: 'Pharmacy', value: 'Add pharmacy contact' },
+    { label: 'Physical therapy', value: 'Add PT contact' }
+  ],
+  medicationTemplates: [
+    {
+      name: 'Prescription placeholder',
+      dose: 'Use discharge instructions',
+      scheduled: 'Scheduled',
+      dueTime: 'TBD',
+      givenTime: '',
+      givenBy: '',
+      notes: 'Neutral placeholder until Brent adds actual bottle details.'
+    }
+  ],
+  milestoneTemplates: [
+    'Surgery complete',
+    'First walk',
+    'First stairs',
+    'First shower',
+    'First PT session',
+    'First bowel movement',
+    'Transition to cane',
+    'Off narcotics',
+    '90° flexion',
+    '110° flexion',
+    'Full extension',
+    'Six-week follow-up'
+  ],
+  timelineSeed: [
+    { type: 'Surgery day', text: 'Surgery scheduled for Monday morning.', at: new Date().toISOString() }
+  ]
 };
+
+function createDefaultState() {
+  return {
+    patient: structuredClone(SEED.patient),
+    surgeryDate: SURGERY_DATE,
+    contacts: structuredClone(SEED.contacts),
+    medicationTemplates: structuredClone(SEED.medicationTemplates),
+    milestoneTemplates: structuredClone(SEED.milestoneTemplates),
+    milestoneHistory: [],
+    meds: [],
+    timeline: structuredClone(SEED.timelineSeed),
+    equipment: structuredClone(SEED.equipment),
+    notes: [],
+    activityLog: [],
+    checklist: CHECKLIST.map(id => ({ id, done: false, at: null }))
+  };
+};
+
+const DEFAULT_STATE = createDefaultState();
 
 const els = {
   day: document.getElementById('recovery-day'),
@@ -36,16 +89,19 @@ const els = {
   today: document.getElementById('today-list'),
   checklist: document.getElementById('checklist'),
   activity: document.getElementById('activity'),
-  meds: document.getElementById('med-log'),
-  timeline: document.getElementById('timeline'),
   equipment: document.getElementById('equipment'),
   notes: document.getElementById('notes'),
+  contactsForm: document.getElementById('contacts-form'),
+  medicationForm: document.getElementById('medication-form'),
+  milestones: document.getElementById('milestones'),
   nextTask: document.getElementById('next-task'),
   followUpSummary: document.getElementById('follow-up-summary'),
+  saveContacts: document.getElementById('save-contacts'),
+  saveMedications: document.getElementById('save-medications'),
+  addMilestone: document.getElementById('add-milestone'),
   form: document.getElementById('event-form'),
   reset: document.getElementById('reset-demo'),
   exportJson: document.getElementById('export-json'),
-  exportCsv: document.getElementById('export-csv'),
   importJson: document.getElementById('import-json'),
   copySummary: document.getElementById('copy-summary'),
   printSummary: document.getElementById('print-summary')
@@ -58,7 +114,7 @@ function loadState() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) return normalizeState(JSON.parse(raw));
   } catch {}
-  return structuredClone(SAMPLE);
+  return structuredClone(DEFAULT_STATE);
 }
 
 function saveState() {
@@ -104,17 +160,44 @@ async function importState(file) {
 }
 
 function normalizeState(next) {
-  const merged = { ...structuredClone(SAMPLE), ...next };
+  const merged = { ...structuredClone(DEFAULT_STATE), ...next };
+  merged.patient = { ...DEFAULT_STATE.patient, ...(next?.patient || {}) };
   merged.checklist = Array.isArray(next?.checklist)
     ? next.checklist.map(item => ({
         id: String(item.id || ''),
         done: Boolean(item.done),
         at: item.at || null
       })).filter(item => item.id)
-    : structuredClone(SAMPLE.checklist);
+    : structuredClone(DEFAULT_STATE.checklist);
+  merged.contacts = Array.isArray(next?.contacts)
+    ? next.contacts.map(item => ({
+        label: String(item?.label || ''),
+        value: String(item?.value || '')
+      })).filter(item => item.label)
+    : structuredClone(DEFAULT_STATE.contacts);
+  merged.medicationTemplates = Array.isArray(next?.medicationTemplates)
+    ? next.medicationTemplates.map(item => ({
+        name: String(item?.name || ''),
+        dose: String(item?.dose || ''),
+        scheduled: String(item?.scheduled || ''),
+        dueTime: String(item?.dueTime || ''),
+        givenTime: String(item?.givenTime || ''),
+        givenBy: String(item?.givenBy || ''),
+        notes: String(item?.notes || '')
+      }))
+    : structuredClone(DEFAULT_STATE.medicationTemplates);
+  merged.milestoneTemplates = Array.isArray(next?.milestoneTemplates)
+    ? next.milestoneTemplates.map(item => String(item || '').trim()).filter(Boolean)
+    : structuredClone(DEFAULT_STATE.milestoneTemplates);
+  merged.milestoneHistory = Array.isArray(next?.milestoneHistory)
+    ? next.milestoneHistory.map(item => ({
+        name: String(item?.name || '').trim(),
+        at: String(item?.at || '')
+      })).filter(item => item.name)
+    : [];
   merged.meds = Array.isArray(next?.meds) ? next.meds : [];
-  merged.timeline = Array.isArray(next?.timeline) ? next.timeline : [];
-  merged.equipment = Array.isArray(next?.equipment) ? next.equipment : structuredClone(SAMPLE.equipment);
+  merged.timeline = Array.isArray(next?.timeline) ? next.timeline : structuredClone(DEFAULT_STATE.timeline);
+  merged.equipment = Array.isArray(next?.equipment) ? next.equipment : structuredClone(DEFAULT_STATE.equipment);
   merged.notes = Array.isArray(next?.notes) ? next.notes : [];
   merged.activityLog = Array.isArray(next?.activityLog) ? next.activityLog : [];
   merged.surgeryDate = typeof next?.surgeryDate === 'string' ? next.surgeryDate : SURGERY_DATE;
@@ -147,13 +230,14 @@ function render() {
   els.surgeryDate.value = state.surgeryDate || SURGERY_DATE;
   els.day.textContent = `Day ${recoveryDay()}`;
   els.countdown.textContent = countdownText();
+  renderContactsForm();
+  renderMedicationForm();
+  renderMilestones();
   els.today.innerHTML = renderTodayTasks();
   els.checklist.innerHTML = state.checklist.map(renderChecklist).join('');
   els.nextTask.innerHTML = renderNextTask();
   els.followUpSummary.innerHTML = `<div class="summary-text">${escapeHtml(buildFollowUpSummary())}</div>`;
   els.activity.innerHTML = state.activityLog.length ? state.activityLog.slice().reverse().map(renderEntry).join('') : empty('No activity logged yet.');
-  els.meds.innerHTML = state.meds.length ? state.meds.map(renderEntry).join('') : empty('No medication entries yet.');
-  els.timeline.innerHTML = state.timeline.length ? state.timeline.slice().reverse().map(renderEntry).join('') : empty('No timeline entries yet.');
   els.equipment.innerHTML = state.equipment.map(item => `
     <div class="item">
       <div class="item-head">
@@ -162,17 +246,6 @@ function render() {
       </div>
     </div>`).join('');
   els.notes.innerHTML = state.notes.length ? state.notes.slice().reverse().map(renderEntry).join('') : empty('No notes yet.');
-}
-
-function renderTodayTasks() {
-  const tasks = deriveTodayTasks();
-  return tasks.map(task => `<div class="item">${escapeHtml(task)}</div>`).join('');
-}
-
-function deriveTodayTasks() {
-  const tasks = ['Recovery medication check', 'Hydration', 'Walk', 'Ice & compression', 'Exercises', 'Rest & elevate'];
-  const completed = new Set(state.checklist.filter(item => item.done).map(item => item.id));
-  return tasks.filter(task => !completed.has(task));
 }
 
 function renderChecklist(item, index) {
@@ -203,6 +276,77 @@ function renderNextTask() {
     </div>
     <p class="small">Add the next event, note, or follow-up as needed.</p>
   `;
+}
+
+function renderContactsForm() {
+  els.contactsForm.innerHTML = state.contacts.map((item, index) => `
+    <label>
+      <span>${escapeHtml(item.label)}</span>
+      <input data-contact-index="${index}" data-contact-field="value" value="${escapeHtml(item.value)}" />
+    </label>
+  `).join('');
+}
+
+function renderMedicationForm() {
+  els.medicationForm.innerHTML = state.medicationTemplates.map((item, index) => `
+    <label>
+      <span>Medication name</span>
+      <input data-med-index="${index}" data-med-field="name" value="${escapeHtml(item.name)}" placeholder="Medication name" />
+      <span>Dose / instructions</span>
+      <textarea data-med-index="${index}" data-med-field="dose" rows="3" placeholder="Use discharge instructions">${escapeHtml(item.dose)}</textarea>
+      <span class="small">Store instructions exactly as Brent enters them. No dosing advice is generated here.</span>
+      <span>Scheduled or PRN</span>
+      <input data-med-index="${index}" data-med-field="scheduled" value="${escapeHtml(item.scheduled)}" placeholder="Scheduled or PRN" />
+      <span>Due time</span>
+      <input data-med-index="${index}" data-med-field="dueTime" value="${escapeHtml(item.dueTime)}" placeholder="TBD" />
+      <span>Given time</span>
+      <input data-med-index="${index}" data-med-field="givenTime" value="${escapeHtml(item.givenTime)}" />
+      <span>Given by</span>
+      <input data-med-index="${index}" data-med-field="givenBy" value="${escapeHtml(item.givenBy)}" />
+      <span>Notes</span>
+      <textarea data-med-index="${index}" data-med-field="notes" rows="3">${escapeHtml(item.notes)}</textarea>
+    </label>
+  `).join('');
+}
+
+function renderMilestones() {
+  const historyByName = new Map();
+  for (const entry of state.milestoneHistory) {
+    if (!historyByName.has(entry.name)) historyByName.set(entry.name, []);
+    historyByName.get(entry.name).push(entry);
+  }
+  els.milestones.innerHTML = state.milestoneTemplates.map((name, index) => {
+    const history = historyByName.get(name) || [];
+    const latest = history.at(-1);
+    return `
+      <div class="item">
+        <div class="item-head">
+          <strong>${escapeHtml(name)}</strong>
+          <span class="tag">${latest ? 'Tracked' : 'Open'}</span>
+        </div>
+        <button type="button" class="ghost" data-milestone-toggle="${index}">${latest ? 'Mark again' : 'Mark complete'}</button>
+        <div class="stack">
+          ${history.length ? history.slice().reverse().map(entry => `
+            <div class="contact-item">
+              <strong>${escapeHtml(entry.name)}</strong>
+              <span class="small">${escapeHtml(formatTime(entry.at))}</span>
+            </div>
+          `).join('') : '<div class="small">No completion history yet.</div>'}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderTodayTasks() {
+  const tasks = deriveTodayTasks();
+  return tasks.map(task => `<div class="item">${escapeHtml(task)}</div>`).join('');
+}
+
+function deriveTodayTasks() {
+  const tasks = ['Recovery medication check', 'Hydration', 'Walk', 'Ice & compression', 'Exercises', 'Rest & elevate'];
+  const completed = new Set(state.checklist.filter(item => item.done).map(item => item.id));
+  return tasks.filter(task => !completed.has(task));
 }
 
 function buildFollowUpSummary() {
@@ -272,6 +416,53 @@ els.checklist.addEventListener('change', (event) => {
   render();
 });
 
+function persistAndRender() {
+  saveState();
+  render();
+}
+
+els.contactsForm.addEventListener('input', event => {
+  const target = event.target.closest('[data-contact-index][data-contact-field]');
+  if (!target) return;
+  const index = Number(target.dataset.contactIndex);
+  const item = state.contacts[index];
+  if (!item) return;
+  item[target.dataset.contactField] = target.value;
+});
+
+els.medicationForm.addEventListener('input', event => {
+  const target = event.target.closest('[data-med-index][data-med-field]');
+  if (!target) return;
+  const index = Number(target.dataset.medIndex);
+  const item = state.medicationTemplates[index];
+  if (!item) return;
+  const field = target.dataset.medField;
+  item[field] = target.value;
+});
+
+els.contactsForm.addEventListener('blur', persistAndRender, true);
+els.medicationForm.addEventListener('blur', persistAndRender, true);
+
+els.saveContacts.addEventListener('click', persistAndRender);
+els.saveMedications.addEventListener('click', persistAndRender);
+
+els.addMilestone.addEventListener('click', () => {
+  const name = window.prompt('Milestone name');
+  if (!name) return;
+  state.milestoneTemplates.push(name.trim());
+  persistAndRender();
+});
+
+els.milestones.addEventListener('click', event => {
+  const button = event.target.closest('[data-milestone-toggle]');
+  if (!button) return;
+  const index = Number(button.dataset.milestoneToggle);
+  const name = state.milestoneTemplates[index];
+  if (!name) return;
+  state.milestoneHistory.push({ name, at: new Date().toISOString() });
+  persistAndRender();
+});
+
 els.form.addEventListener('submit', (event) => {
   event.preventDefault();
   const formData = new FormData(els.form);
@@ -295,7 +486,7 @@ els.form.addEventListener('submit', (event) => {
 
 els.reset.addEventListener('click', () => {
   localStorage.removeItem(STORAGE_KEY);
-  state = structuredClone(SAMPLE);
+  state = structuredClone(DEFAULT_STATE);
   saveState();
   render();
 });
@@ -331,5 +522,11 @@ els.importJson.addEventListener('change', async () => {
     els.importJson.value = '';
   }
 });
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(error => {
+    console.warn('Service worker registration failed', error);
+  });
+}
 
 render();
