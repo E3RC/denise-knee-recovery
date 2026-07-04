@@ -47,7 +47,8 @@ const els = {
   exportJson: document.getElementById('export-json'),
   exportCsv: document.getElementById('export-csv'),
   importJson: document.getElementById('import-json'),
-  copySummary: document.getElementById('copy-summary')
+  copySummary: document.getElementById('copy-summary'),
+  printSummary: document.getElementById('print-summary')
 };
 
 let state = loadState();
@@ -208,12 +209,15 @@ function buildFollowUpSummary() {
   const completed = state.checklist.filter(item => item.done).length;
   const total = state.checklist.length;
   const surgery = state.surgeryDate || SURGERY_DATE;
+  const pending = state.checklist.filter(item => !item.done).slice(0, 4).map(item => `- ${item.id}`).join('\n');
   const recent = state.activityLog.slice(-5).map(item => `- ${item.type || 'Entry'}: ${item.text}`).join('\n');
   return [
     `Surgery date: ${surgery}`,
     `Recovery day: Day ${recoveryDay()}`,
     `Checklist: ${completed}/${total} complete`,
     `Next task: ${state.checklist.find(item => !item.done)?.id || 'All checklist items complete'}`,
+    `Pending checklist:`,
+    pending || '- None',
     `Recent activity:`,
     recent || '- No recent activity'
   ].join('\n');
@@ -297,6 +301,7 @@ els.reset.addEventListener('click', () => {
 });
 
 els.exportJson.addEventListener('click', exportState);
+els.exportCsv = document.getElementById('export-csv');
 els.exportCsv.addEventListener('click', exportCsv);
 
 els.copySummary.addEventListener('click', async () => {
@@ -308,6 +313,10 @@ els.copySummary.addEventListener('click', async () => {
     alert('Copy failed. Your browser may block clipboard access.');
     console.error(error);
   }
+});
+
+els.printSummary.addEventListener('click', () => {
+  window.print();
 });
 
 els.importJson.addEventListener('change', async () => {
