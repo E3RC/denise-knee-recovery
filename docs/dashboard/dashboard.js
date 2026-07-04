@@ -14,14 +14,6 @@ const CHECKLIST = [
 
 const SAMPLE = {
   surgeryDate: SURGERY_DATE,
-  todayTasks: [
-    'Recovery medication check',
-    'Hydration',
-    'Walk',
-    'Ice & compression',
-    'Exercises',
-    'Rest & elevate'
-  ],
   meds: [],
   timeline: [
     { type: 'Surgery day', text: 'Surgery scheduled for Monday morning.', at: new Date().toISOString() }
@@ -53,6 +45,7 @@ const els = {
   form: document.getElementById('event-form'),
   reset: document.getElementById('reset-demo'),
   exportJson: document.getElementById('export-json'),
+  exportCsv: document.getElementById('export-csv'),
   importJson: document.getElementById('import-json'),
   copySummary: document.getElementById('copy-summary')
 };
@@ -62,7 +55,7 @@ let state = loadState();
 function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return { ...SAMPLE, ...JSON.parse(raw) };
+    if (raw) return normalizeState(JSON.parse(raw));
   } catch {}
   return structuredClone(SAMPLE);
 }
@@ -81,6 +74,26 @@ function exportState() {
   URL.revokeObjectURL(url);
 }
 
+function exportCsv() {
+  const rows = [
+    ['type', 'timestamp', 'text'],
+    ...[
+      ...state.activityLog.map(item => [item.type || 'Activity', item.at || '', item.text || '']),
+      ...state.timeline.map(item => [item.type || 'Timeline', item.at || '', item.text || '']),
+      ...state.meds.map(item => [item.type || 'Medication', item.at || '', item.text || '']),
+      ...state.notes.map(item => [item.type || 'Note', item.at || '', item.text || ''])
+    ]
+  ];
+  const csv = rows.map(cols => cols.map(csvCell).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `denise-recovery-${state.surgeryDate || SURGERY_DATE}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 async function importState(file) {
   const text = await file.text();
   const next = JSON.parse(text);
@@ -91,14 +104,20 @@ async function importState(file) {
 
 function normalizeState(next) {
   const merged = { ...structuredClone(SAMPLE), ...next };
-  merged.checklist = Array.isArray(next?.checklist) ? next.checklist : structuredClone(SAMPLE.checklist);
-  merged.todayTasks = Array.isArray(next?.todayTasks) ? next.todayTasks : structuredClone(SAMPLE.todayTasks);
+  merged.checklist = Array.isArray(next?.checklist)
+    ? next.checklist.map(item => ({
+        id: String(item.id || ''),
+        done: Boolean(item.done),
+        at: item.at || null
+      })).filter(item => item.id)
+    : structuredClone(SAMPLE.checklist);
   merged.meds = Array.isArray(next?.meds) ? next.meds : [];
   merged.timeline = Array.isArray(next?.timeline) ? next.timeline : [];
   merged.equipment = Array.isArray(next?.equipment) ? next.equipment : structuredClone(SAMPLE.equipment);
   merged.notes = Array.isArray(next?.notes) ? next.notes : [];
   merged.activityLog = Array.isArray(next?.activityLog) ? next.activityLog : [];
   merged.surgeryDate = typeof next?.surgeryDate === 'string' ? next.surgeryDate : SURGERY_DATE;
+  delete merged.todayTasks;
   return merged;
 }
 
@@ -127,7 +146,7 @@ function render() {
   els.surgeryDate.value = state.surgeryDate || SURGERY_DATE;
   els.day.textContent = `Day ${recoveryDay()}`;
   els.countdown.textContent = countdownText();
-  els.today.innerHTML = state.todayTasks.map(task => `<div class="item">${escapeHtml(task)}</div>`).join('');
+  els.today.innerHTML = renderTodayTasks();
   els.checklist.innerHTML = state.checklist.map(renderChecklist).join('');
   els.nextTask.innerHTML = renderNextTask();
   els.followUpSummary.innerHTML = `<div class="summary-text">${escapeHtml(buildFollowUpSummary())}</div>`;
@@ -142,6 +161,17 @@ function render() {
       </div>
     </div>`).join('');
   els.notes.innerHTML = state.notes.length ? state.notes.slice().reverse().map(renderEntry).join('') : empty('No notes yet.');
+}
+
+function renderTodayTasks() {
+  const tasks = deriveTodayTasks();
+  return tasks.map(task => `<div class="item">${escapeHtml(task)}</div>`).join('');
+}
+
+function deriveTodayTasks() {
+  const tasks = ['Recovery medication check', 'Hydration', 'Walk', 'Ice & compression', 'Exercises', 'Rest & elevate'];
+  const completed = new Set(state.checklist.filter(item => item.done).map(item => item.id));
+  return tasks.filter(task => !completed.has(task));
 }
 
 function renderChecklist(item, index) {
@@ -214,6 +244,11 @@ function escapeHtml(value) {
   return String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
 }
 
+function csvCell(value) {
+  const text = String(value ?? '');
+  return `"${text.replaceAll('"', '""')}"`;
+}
+
 els.surgeryDate.addEventListener('change', () => {
   state.surgeryDate = els.surgeryDate.value || SURGERY_DATE;
   saveState();
@@ -262,6 +297,7 @@ els.reset.addEventListener('click', () => {
 });
 
 els.exportJson.addEventListener('click', exportState);
+els.exportCsv.addEventListener('click', exportCsv);
 
 els.copySummary.addEventListener('click', async () => {
   try {
