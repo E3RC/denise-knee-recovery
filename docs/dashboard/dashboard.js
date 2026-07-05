@@ -79,6 +79,7 @@ function createDefaultState() {
     equipment: structuredClone(SEED.equipment),
     notes: [],
     activityLog: [],
+    dailyLog: [],
     checklist: CHECKLIST.map(id => ({ id, done: false, at: null }))
   };
 }
@@ -92,6 +93,7 @@ const els = {
   today: document.getElementById('today-list'),
   checklist: document.getElementById('checklist'),
   activity: document.getElementById('activity'),
+  caregiverLog: document.getElementById('caregiver-log'),
   equipment: document.getElementById('equipment'),
   notes: document.getElementById('notes'),
   contactsForm: document.getElementById('contacts-form'),
@@ -101,6 +103,7 @@ const els = {
   followUpSummary: document.getElementById('follow-up-summary'),
   saveContacts: document.getElementById('save-contacts'),
   saveMedications: document.getElementById('save-medications'),
+  addLogEntry: document.getElementById('add-log-entry'),
   addMilestone: document.getElementById('add-milestone'),
   form: document.getElementById('event-form'),
   reset: document.getElementById('reset-demo'),
@@ -139,6 +142,11 @@ function exportCsv() {
     ['type', 'timestamp', 'text'],
     ...[
       ...state.activityLog.map(item => [item.type || 'Activity', item.at || '', item.text || '']),
+      ...state.dailyLog.map(item => [
+        'Caregiver log',
+        item.when || '',
+        [item.status, item.details].filter(Boolean).join(' - ')
+      ]),
       ...state.timeline.map(item => [item.type || 'Timeline', item.at || '', item.text || '']),
       ...state.meds.map(item => [item.type || 'Medication', item.at || '', item.text || '']),
       ...state.notes.map(item => [item.type || 'Note', item.at || '', item.text || ''])
@@ -204,6 +212,13 @@ function normalizeState(next) {
     : structuredClone(DEFAULT_STATE.milestoneTemplates);
   merged.milestoneTemplates = merged.milestoneTemplates.filter(item => item && item.name);
   delete merged.milestoneHistory;
+  merged.dailyLog = Array.isArray(next?.dailyLog)
+    ? next.dailyLog.map(item => ({
+        when: normalizeLogTime(item?.when),
+        status: String(item?.status || '').trim(),
+        details: String(item?.details || '').trim()
+      })).filter(item => item.when || item.status || item.details)
+    : [];
   merged.meds = Array.isArray(next?.meds) ? next.meds : [];
   merged.timeline = Array.isArray(next?.timeline) ? next.timeline : structuredClone(DEFAULT_STATE.timeline);
   merged.equipment = Array.isArray(next?.equipment) ? next.equipment : structuredClone(DEFAULT_STATE.equipment);
@@ -234,6 +249,12 @@ function normalizeMilestoneHistoryEntry(entry) {
   };
 }
 
+function normalizeLogTime(value) {
+  if (!value) return '';
+  const dt = new Date(value);
+  return Number.isNaN(dt.getTime()) ? '' : dt.toISOString();
+}
+
 function stamp(text, type) {
   return { text, type, at: new Date().toISOString() };
 }
@@ -262,6 +283,7 @@ function render() {
   renderContactsForm();
   renderMedicationForm();
   renderMilestones();
+  renderCaregiverLog();
   els.today.innerHTML = renderTodayTasks();
   els.checklist.innerHTML = state.checklist.map(renderChecklist).join('');
   els.nextTask.innerHTML = renderNextTask();
@@ -369,6 +391,28 @@ function renderMilestones() {
   }).join('');
 }
 
+function renderCaregiverLog() {
+  els.caregiverLog.innerHTML = state.dailyLog.length ? state.dailyLog.map((item, index) => `
+    <div class="log-row">
+      <label class="log-cell">
+        <span>When</span>
+        <input type="datetime-local" data-log-index="${index}" data-log-field="when" value="${escapeHtml(toDatetimeLocalValue(item.when))}" />
+      </label>
+      <label class="log-cell">
+        <span>Status</span>
+        <input data-log-index="${index}" data-log-field="status" value="${escapeHtml(item.status)}" placeholder="Medication, mood, fasting" />
+      </label>
+      <label class="log-cell">
+        <span>Details</span>
+        <textarea data-log-index="${index}" data-log-field="details" rows="3" placeholder="Enter the update">${escapeHtml(item.details)}</textarea>
+      </label>
+      <div class="log-controls">
+        <button type="button" class="ghost" data-log-remove="${index}">Delete</button>
+      </div>
+    </div>
+  `).join('') : '<div class="item muted">No caregiver log entries yet. Add a daily update here.</div>';
+}
+
 function renderTodayTasks() {
   const tasks = deriveTodayTasks();
   return tasks.map(task => `<div class="item">${escapeHtml(task)}</div>`).join('');
@@ -386,6 +430,12 @@ function buildFollowUpSummary() {
   const surgery = state.surgeryDate || SURGERY_DATE;
   const pending = state.checklist.filter(item => !item.done).slice(0, 4).map(item => `- ${item.id}`).join('\n');
   const recent = state.activityLog.slice(-5).map(item => `- ${item.type || 'Entry'}: ${item.text}`).join('\n');
+  const recentLog = state.dailyLog.slice(-3).map(item => {
+    const when = formatDateTime(item.when) || 'No time';
+    const status = item.status || 'Log';
+    const details = item.details || 'No details';
+    return `- ${when}: ${status} - ${details}`;
+  }).join('\n');
   return [
     `Surgery date: ${surgery}`,
     `Recovery day: Day ${recoveryDay()}`,
@@ -393,6 +443,8 @@ function buildFollowUpSummary() {
     `Next task: ${state.checklist.find(item => !item.done)?.id || 'All checklist items complete'}`,
     `Pending checklist:`,
     pending || '- None',
+    `Recent caregiver log:`,
+    recentLog || '- No caregiver log entries yet',
     `Recent activity:`,
     recent || '- No recent activity'
   ].join('\n');
@@ -417,6 +469,30 @@ function empty(text) {
 function formatTime(value) {
   const dt = new Date(value);
   return Number.isNaN(dt.getTime()) ? '' : new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' }).format(dt);
+}
+
+function formatDateTime(value) {
+  const dt = new Date(value);
+  return Number.isNaN(dt.getTime()) ? '' : new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
+  }).format(dt);
+}
+
+function toDatetimeLocalValue(value) {
+  const dt = new Date(value);
+  if (Number.isNaN(dt.getTime())) return '';
+  const offset = dt.getTimezoneOffset();
+  const local = new Date(dt.getTime() - offset * 60000);
+  return local.toISOString().slice(0, 16);
+}
+
+function normalizeLogTime(value) {
+  if (!value) return '';
+  const dt = new Date(value);
+  return Number.isNaN(dt.getTime()) ? '' : dt.toISOString();
 }
 
 function escapeHtml(value) {
@@ -480,12 +556,40 @@ els.milestones.addEventListener('input', event => {
   item.name = target.value;
 });
 
+els.caregiverLog.addEventListener('input', event => {
+  const target = event.target.closest('[data-log-index][data-log-field]');
+  if (!target) return;
+  const index = Number(target.dataset.logIndex);
+  const item = state.dailyLog[index];
+  if (!item) return;
+  const field = target.dataset.logField;
+  item[field] = field === 'when' ? normalizeLogTime(target.value) : target.value;
+});
+
 els.contactsForm.addEventListener('blur', persistAndRender, true);
 els.medicationForm.addEventListener('blur', persistAndRender, true);
 els.milestones.addEventListener('blur', persistAndRender, true);
+els.caregiverLog.addEventListener('blur', persistAndRender, true);
 
 els.saveContacts.addEventListener('click', persistAndRender);
 els.saveMedications.addEventListener('click', persistAndRender);
+els.addLogEntry.addEventListener('click', () => {
+  state.dailyLog.unshift({
+    when: new Date().toISOString(),
+    status: '',
+    details: ''
+  });
+  persistAndRender();
+});
+
+els.caregiverLog.addEventListener('click', event => {
+  const button = event.target.closest('[data-log-remove]');
+  if (!button) return;
+  const index = Number(button.dataset.logRemove);
+  if (!Number.isFinite(index)) return;
+  state.dailyLog.splice(index, 1);
+  persistAndRender();
+});
 
 els.addMilestone.addEventListener('click', () => {
   const name = window.prompt('Milestone name');
