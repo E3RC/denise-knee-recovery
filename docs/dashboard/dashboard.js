@@ -69,8 +69,11 @@ function createDefaultState() {
     surgeryDate: SURGERY_DATE,
     contacts: structuredClone(SEED.contacts),
     medicationTemplates: structuredClone(SEED.medicationTemplates),
-    milestoneTemplates: structuredClone(SEED.milestoneTemplates),
-    milestoneHistory: [],
+    milestoneTemplates: SEED.milestoneTemplates.map(name => ({
+      name,
+      completed: false,
+      history: []
+    })),
     meds: [],
     timeline: structuredClone(SEED.timelineSeed),
     equipment: structuredClone(SEED.equipment),
@@ -78,7 +81,7 @@ function createDefaultState() {
     activityLog: [],
     checklist: CHECKLIST.map(id => ({ id, done: false, at: null }))
   };
-};
+}
 
 const DEFAULT_STATE = createDefaultState();
 
@@ -186,15 +189,21 @@ function normalizeState(next) {
         notes: String(item?.notes || '')
       }))
     : structuredClone(DEFAULT_STATE.medicationTemplates);
+
+  const legacyHistory = Array.isArray(next?.milestoneHistory) ? next.milestoneHistory : [];
+  const historyByName = new Map();
+  for (const entry of legacyHistory) {
+    const name = String(entry?.name || '').trim();
+    if (!name) continue;
+    if (!historyByName.has(name)) historyByName.set(name, []);
+    historyByName.get(name).push(normalizeMilestoneHistoryEntry(entry));
+  }
+
   merged.milestoneTemplates = Array.isArray(next?.milestoneTemplates)
-    ? next.milestoneTemplates.map(item => String(item || '').trim()).filter(Boolean)
+    ? next.milestoneTemplates.map(item => normalizeMilestone(item, historyByName))
     : structuredClone(DEFAULT_STATE.milestoneTemplates);
-  merged.milestoneHistory = Array.isArray(next?.milestoneHistory)
-    ? next.milestoneHistory.map(item => ({
-        name: String(item?.name || '').trim(),
-        at: String(item?.at || '')
-      })).filter(item => item.name)
-    : [];
+  merged.milestoneTemplates = merged.milestoneTemplates.filter(item => item && item.name);
+  delete merged.milestoneHistory;
   merged.meds = Array.isArray(next?.meds) ? next.meds : [];
   merged.timeline = Array.isArray(next?.timeline) ? next.timeline : structuredClone(DEFAULT_STATE.timeline);
   merged.equipment = Array.isArray(next?.equipment) ? next.equipment : structuredClone(DEFAULT_STATE.equipment);
@@ -203,6 +212,26 @@ function normalizeState(next) {
   merged.surgeryDate = typeof next?.surgeryDate === 'string' ? next.surgeryDate : SURGERY_DATE;
   delete merged.todayTasks;
   return merged;
+}
+
+function normalizeMilestone(item, historyByName) {
+  const name = String(item?.name ?? item ?? '').trim();
+  if (!name) return null;
+  const history = Array.isArray(item?.history)
+    ? item.history.map(normalizeMilestoneHistoryEntry).filter(entry => entry.at)
+    : (historyByName.get(name) || []);
+  return {
+    name,
+    completed: Boolean(item?.completed ?? history.at(-1)?.action === 'completed'),
+    history
+  };
+}
+
+function normalizeMilestoneHistoryEntry(entry) {
+  return {
+    action: entry?.action === 'uncompleted' ? 'uncompleted' : 'completed',
+    at: String(entry?.at || '')
+  };
 }
 
 function stamp(text, type) {
@@ -310,28 +339,30 @@ function renderMedicationForm() {
 }
 
 function renderMilestones() {
-  const historyByName = new Map();
-  for (const entry of state.milestoneHistory) {
-    if (!historyByName.has(entry.name)) historyByName.set(entry.name, []);
-    historyByName.get(entry.name).push(entry);
-  }
-  els.milestones.innerHTML = state.milestoneTemplates.map((name, index) => {
-    const history = historyByName.get(name) || [];
+  els.milestones.innerHTML = state.milestoneTemplates.map((item, index) => {
+    const history = Array.isArray(item.history) ? item.history : [];
     const latest = history.at(-1);
+    const isComplete = Boolean(item.completed);
     return `
-      <div class="item">
+      <div class="item milestone-card">
         <div class="item-head">
-          <strong>${escapeHtml(name)}</strong>
-          <span class="tag">${latest ? 'Tracked' : 'Open'}</span>
+          <label class="milestone-name">
+            <span>Milestone name</span>
+            <input data-milestone-index="${index}" data-milestone-field="name" value="${escapeHtml(item.name)}" placeholder="Milestone name" />
+          </label>
+          <span class="tag">${isComplete ? 'Complete' : 'Open'}</span>
         </div>
-        <button type="button" class="ghost" data-milestone-toggle="${index}">${latest ? 'Mark again' : 'Mark complete'}</button>
-        <div class="stack">
+        <div class="section-actions">
+          <button type="button" class="ghost" data-milestone-toggle="${index}">${isComplete ? 'Mark incomplete' : 'Mark complete'}</button>
+        </div>
+        <div class="stack milestone-history">
           ${history.length ? history.slice().reverse().map(entry => `
             <div class="contact-item">
-              <strong>${escapeHtml(entry.name)}</strong>
+              <strong>${escapeHtml(entry.action === 'completed' ? 'Completed' : 'Uncompleted')}</strong>
               <span class="small">${escapeHtml(formatTime(entry.at))}</span>
             </div>
-          `).join('') : '<div class="small">No completion history yet.</div>'}
+          `).join('') : '<div class="small">No history yet.</div>'}
+          ${latest ? `<div class="small">Latest change: ${escapeHtml(latest.action)} at ${escapeHtml(formatTime(latest.at))}</div>` : ''}
         </div>
       </div>
     `;
@@ -440,8 +471,18 @@ els.medicationForm.addEventListener('input', event => {
   item[field] = target.value;
 });
 
+els.milestones.addEventListener('input', event => {
+  const target = event.target.closest('[data-milestone-index][data-milestone-field]');
+  if (!target) return;
+  const index = Number(target.dataset.milestoneIndex);
+  const item = state.milestoneTemplates[index];
+  if (!item) return;
+  item.name = target.value;
+});
+
 els.contactsForm.addEventListener('blur', persistAndRender, true);
 els.medicationForm.addEventListener('blur', persistAndRender, true);
+els.milestones.addEventListener('blur', persistAndRender, true);
 
 els.saveContacts.addEventListener('click', persistAndRender);
 els.saveMedications.addEventListener('click', persistAndRender);
@@ -449,7 +490,11 @@ els.saveMedications.addEventListener('click', persistAndRender);
 els.addMilestone.addEventListener('click', () => {
   const name = window.prompt('Milestone name');
   if (!name) return;
-  state.milestoneTemplates.push(name.trim());
+  state.milestoneTemplates.push({
+    name: name.trim(),
+    completed: false,
+    history: []
+  });
   persistAndRender();
 });
 
@@ -457,9 +502,13 @@ els.milestones.addEventListener('click', event => {
   const button = event.target.closest('[data-milestone-toggle]');
   if (!button) return;
   const index = Number(button.dataset.milestoneToggle);
-  const name = state.milestoneTemplates[index];
-  if (!name) return;
-  state.milestoneHistory.push({ name, at: new Date().toISOString() });
+  const item = state.milestoneTemplates[index];
+  if (!item) return;
+  item.completed = !item.completed;
+  item.history.push({
+    action: item.completed ? 'completed' : 'uncompleted',
+    at: new Date().toISOString()
+  });
   persistAndRender();
 });
 
