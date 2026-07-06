@@ -34,6 +34,18 @@
             <button id="save-medications" class="ghost" type="button">Save meds</button>
           </div>
         </div>
+        <p class="small">Keep this page simple: pick a medication by name, see whether it has been dispensed, then open that one medication for details and timer updates.</p>
+        <div id="medication-list" class="stack"></div>
+      </section>
+
+      <section class="card wide">
+        <div class="section-head">
+          <h2 id="detail-title">Medication details</h2>
+          <div class="section-actions">
+            <button id="back-to-list" class="ghost" type="button">Back to list</button>
+            <button id="mark-dispensed" class="ghost" type="button">Toggle dispensed</button>
+          </div>
+        </div>
         <p class="small">Enter names and directions exactly as written on the bottle or discharge paperwork. No dose calculations are generated here.</p>
         <form id="medication-form" class="stack"></form>
       </section>

@@ -3,9 +3,13 @@ const DASHBOARD_STATE_URL = '/api/dashboard-state';
 const DISPLAY_TIMEZONE = 'America/Indiana/Indianapolis';
 
 const els = {
+  medicationList: document.getElementById('medication-list'),
   medicationForm: document.getElementById('medication-form'),
   addMedication: document.getElementById('add-medication'),
   saveMedications: document.getElementById('save-medications'),
+  backToList: document.getElementById('back-to-list'),
+  markDispensed: document.getElementById('mark-dispensed'),
+  detailTitle: document.getElementById('detail-title'),
   timerPreview: document.getElementById('timer-preview'),
   pushoverPreview: document.getElementById('pushover-preview')
 };
@@ -25,12 +29,14 @@ const DEFAULT_MED = {
   nextDueAt: '',
   givenTime: '',
   givenBy: '',
+  dispensed: false,
   notes: ''
 };
 
 let state = {
   medicationTemplates: [structuredClone(DEFAULT_MED)]
 };
+let selectedMedicationIndex = 0;
 
 function escapeHtml(value) {
   return String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
@@ -193,42 +199,88 @@ function saveState() {
   void persistRemoteState();
 }
 
+function medicationUrl(index) {
+  return `/dashboard/meds/?med=${index}`;
+}
+
+function setSelectedMedication(index, pushHistory = true) {
+  const maxIndex = Math.max(0, state.medicationTemplates.length - 1);
+  selectedMedicationIndex = Math.min(Math.max(Number(index) || 0, 0), maxIndex);
+  if (pushHistory) {
+    window.history.replaceState({}, '', medicationUrl(selectedMedicationIndex));
+  }
+}
+
+function getSelectedMedication() {
+  return state.medicationTemplates[selectedMedicationIndex] || null;
+}
+
+function renderMedicationList() {
+  els.medicationList.innerHTML = state.medicationTemplates.map((item, index) => `
+    <div class="item">
+      <div class="item-head">
+        <div>
+          <strong>${escapeHtml(item.name || `Medication ${index + 1}`)}</strong>
+          <p class="small">${escapeHtml(item.dose || 'Dose not entered')}</p>
+        </div>
+        <span class="tag">${item.dispensed ? 'Dispensed' : 'Not dispensed'}</span>
+      </div>
+      <div class="section-actions">
+        <button type="button" class="ghost" data-open-med="${index}">Open medication</button>
+        <button type="button" class="ghost" data-toggle-dispensed="${index}">${item.dispensed ? 'Mark not dispensed' : 'Mark dispensed'}</button>
+      </div>
+    </div>
+  `).join('');
+}
+
 function renderMedicationForm() {
-  els.medicationForm.innerHTML = state.medicationTemplates.map((item, index) => `
+  const item = getSelectedMedication();
+  if (!item) {
+    els.detailTitle.textContent = 'Medication details';
+    els.medicationForm.innerHTML = '<div class="item muted">Add a medication to get started.</div>';
+    return;
+  }
+
+  els.detailTitle.textContent = item.name ? `${item.name}` : `Medication ${selectedMedicationIndex + 1}`;
+  els.markDispensed.textContent = item.dispensed ? 'Mark not dispensed' : 'Mark dispensed';
+
+  els.medicationForm.innerHTML = `
     <label>
       <span>Medication name</span>
-      <input data-med-index="${index}" data-med-field="name" value="${escapeHtml(item.name)}" placeholder="Medication name" />
+      <input data-med-index="${selectedMedicationIndex}" data-med-field="name" value="${escapeHtml(item.name)}" placeholder="Medication name" />
       <span>Dose</span>
-      <input data-med-index="${index}" data-med-field="dose" value="${escapeHtml(item.dose)}" placeholder="Enter exact dose" />
+      <input data-med-index="${selectedMedicationIndex}" data-med-field="dose" value="${escapeHtml(item.dose)}" placeholder="Enter exact dose" />
       <span>Purpose</span>
-      <input data-med-index="${index}" data-med-field="purpose" value="${escapeHtml(item.purpose)}" placeholder="Pain, nausea, clot prevention, constipation, etc." />
+      <input data-med-index="${selectedMedicationIndex}" data-med-field="purpose" value="${escapeHtml(item.purpose)}" placeholder="Pain, nausea, clot prevention, constipation, etc." />
       <span>Instructions</span>
-      <textarea data-med-index="${index}" data-med-field="instructions" rows="3" placeholder="Enter exact instructions">${escapeHtml(item.instructions || '')}</textarea>
+      <textarea data-med-index="${selectedMedicationIndex}" data-med-field="instructions" rows="3" placeholder="Enter exact instructions">${escapeHtml(item.instructions || '')}</textarea>
       <span>Scheduled or PRN</span>
-      <input data-med-index="${index}" data-med-field="scheduled" value="${escapeHtml(item.scheduled)}" placeholder="Scheduled or PRN" />
+      <input data-med-index="${selectedMedicationIndex}" data-med-field="scheduled" value="${escapeHtml(item.scheduled)}" placeholder="Scheduled or PRN" />
       <span>Interval hours</span>
-      <input data-med-index="${index}" data-med-field="intervalHours" value="${escapeHtml(item.intervalHours)}" placeholder="Example: 4, 6, or 12" />
+      <input data-med-index="${selectedMedicationIndex}" data-med-field="intervalHours" value="${escapeHtml(item.intervalHours)}" placeholder="Example: 4, 6, or 12" />
       <span>Start rule</span>
-      <input data-med-index="${index}" data-med-field="startRule" value="${escapeHtml(item.startRule)}" placeholder="Example: morning after surgery" />
+      <input data-med-index="${selectedMedicationIndex}" data-med-field="startRule" value="${escapeHtml(item.startRule)}" placeholder="Example: morning after surgery" />
       <span>Stop rule</span>
-      <input data-med-index="${index}" data-med-field="stopRule" value="${escapeHtml(item.stopRule)}" placeholder="Example: 7 days, 14 days, or as needed" />
+      <input data-med-index="${selectedMedicationIndex}" data-med-field="stopRule" value="${escapeHtml(item.stopRule)}" placeholder="Example: 7 days, 14 days, or as needed" />
       <span>Due time</span>
-      <input data-med-index="${index}" data-med-field="dueTime" value="${escapeHtml(item.dueTime)}" placeholder="Example: every 6 hours or 8:00 AM" />
+      <input data-med-index="${selectedMedicationIndex}" data-med-field="dueTime" value="${escapeHtml(item.dueTime)}" placeholder="Example: every 6 hours or 8:00 AM" />
       <span>Last given</span>
-      <input type="datetime-local" data-med-index="${index}" data-med-field="lastGivenAt" value="${escapeHtml(toDatetimeLocalValue(item.lastGivenAt))}" />
+      <input type="datetime-local" data-med-index="${selectedMedicationIndex}" data-med-field="lastGivenAt" value="${escapeHtml(toDatetimeLocalValue(item.lastGivenAt))}" />
       <span>Next due</span>
       <input value="${escapeHtml(formatDateTime(item.nextDueAt))}" placeholder="Calculated from last dose" readonly />
       <span>Rule key</span>
-      <input data-med-index="${index}" data-med-field="ruleKey" value="${escapeHtml(item.ruleKey)}" placeholder="Optional special timing rule" />
+      <input data-med-index="${selectedMedicationIndex}" data-med-field="ruleKey" value="${escapeHtml(item.ruleKey)}" placeholder="Optional special timing rule" />
       <span>Given by</span>
-      <input data-med-index="${index}" data-med-field="givenBy" value="${escapeHtml(item.givenBy)}" placeholder="Who gave it" />
+      <input data-med-index="${selectedMedicationIndex}" data-med-field="givenBy" value="${escapeHtml(item.givenBy)}" placeholder="Who gave it" />
       <span>Notes</span>
-      <textarea data-med-index="${index}" data-med-field="notes" rows="3" placeholder="Food, PRN trigger, timer note, or do-not-overlap note">${escapeHtml(item.notes || '')}</textarea>
+      <textarea data-med-index="${selectedMedicationIndex}" data-med-field="notes" rows="3" placeholder="Food, PRN trigger, timer note, or do-not-overlap note">${escapeHtml(item.notes || '')}</textarea>
+      <span>Dispensed</span>
+      <input value="${item.dispensed ? 'Yes' : 'No'}" readonly />
       ${specialRuleNote(item) ? `<span class="small">${escapeHtml(specialRuleNote(item))}</span>` : ''}
-      <button type="button" class="primary" data-med-log-now="${index}">Log dose now and restart timer</button>
-      <button type="button" class="ghost" data-med-remove="${index}">Remove medication</button>
+      <button type="button" class="primary" data-med-log-now="${selectedMedicationIndex}">Log dose now and restart timer</button>
+      <button type="button" class="ghost" data-med-remove="${selectedMedicationIndex}">Remove medication</button>
     </label>
-  `).join('');
+  `;
 }
 
 function renderTimerPreview() {
@@ -271,6 +323,7 @@ function renderPushoverPreview() {
 }
 
 function render() {
+  renderMedicationList();
   renderMedicationForm();
   renderTimerPreview();
   renderPushoverPreview();
@@ -313,12 +366,32 @@ els.medicationForm.addEventListener('click', event => {
   if (!state.medicationTemplates.length) {
     state.medicationTemplates.push(structuredClone(DEFAULT_MED));
   }
+  setSelectedMedication(Math.max(0, index - 1));
+  saveState();
+  render();
+});
+
+els.medicationList.addEventListener('click', event => {
+  const openButton = event.target.closest('[data-open-med]');
+  if (openButton) {
+    setSelectedMedication(Number(openButton.dataset.openMed));
+    render();
+    return;
+  }
+
+  const dispensedButton = event.target.closest('[data-toggle-dispensed]');
+  if (!dispensedButton) return;
+  const index = Number(dispensedButton.dataset.toggleDispensed);
+  const item = state.medicationTemplates[index];
+  if (!item) return;
+  item.dispensed = !item.dispensed;
   saveState();
   render();
 });
 
 els.addMedication.addEventListener('click', () => {
   state.medicationTemplates.push(structuredClone(DEFAULT_MED));
+  setSelectedMedication(state.medicationTemplates.length - 1);
   saveState();
   render();
 });
@@ -328,6 +401,25 @@ els.saveMedications.addEventListener('click', () => {
   render();
 });
 
+els.backToList.addEventListener('click', () => {
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+
+els.markDispensed.addEventListener('click', () => {
+  const item = getSelectedMedication();
+  if (!item) return;
+  item.dispensed = !item.dispensed;
+  saveState();
+  render();
+});
+
+function initSelectionFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const index = Number(params.get('med'));
+  setSelectedMedication(Number.isFinite(index) ? index : 0, false);
+}
+
 loadState();
+initSelectionFromUrl();
 render();
 void syncRemoteState();
