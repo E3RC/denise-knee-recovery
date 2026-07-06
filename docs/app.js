@@ -74,7 +74,10 @@ function renderStat(label, value) {
 
 function formatDate(value) {
   if (!value) return '';
-  const date = new Date(`${value}T12:00:00`);
+  const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return escapeHtml(value);
+  const [, year, month, day] = match;
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day), 12, 0, 0));
   if (Number.isNaN(date.getTime())) return escapeHtml(value);
   return new Intl.DateTimeFormat('en-US', {
     weekday: 'short',

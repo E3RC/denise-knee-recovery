@@ -915,18 +915,62 @@ function formatDateTime(value) {
   }).format(dt);
 }
 
-function toDatetimeLocalValue(value) {
+function getTimeZoneParts(value) {
   const dt = new Date(value);
-  if (Number.isNaN(dt.getTime())) return '';
-  const offset = dt.getTimezoneOffset();
-  const local = new Date(dt.getTime() - offset * 60000);
-  return local.toISOString().slice(0, 16);
+  if (Number.isNaN(dt.getTime())) return null;
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: DISPLAY_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23'
+  }).formatToParts(dt);
+  return Object.fromEntries(parts.filter(part => part.type !== 'literal').map(part => [part.type, part.value]));
+}
+
+function getTimeZoneOffsetMinutes(value) {
+  const parts = getTimeZoneParts(value);
+  if (!parts) return 0;
+  const utcMillis = Date.UTC(
+    Number(parts.year),
+    Number(parts.month) - 1,
+    Number(parts.day),
+    Number(parts.hour),
+    Number(parts.minute),
+    Number(parts.second)
+  );
+  return (utcMillis - new Date(value).getTime()) / 60000;
+}
+
+function toDatetimeLocalValue(value) {
+  const parts = getTimeZoneParts(value);
+  if (!parts) return '';
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
 }
 
 function normalizeLogTime(value) {
   if (!value) return '';
-  const dt = new Date(value);
-  return Number.isNaN(dt.getTime()) ? '' : dt.toISOString();
+  const normalized = String(value).trim();
+  if (!normalized) return '';
+  if (/z$/i.test(normalized) || /[+-]\d{2}:\d{2}$/.test(normalized)) {
+    const dt = new Date(normalized);
+    return Number.isNaN(dt.getTime()) ? '' : dt.toISOString();
+  }
+  const match = normalized.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
+  if (!match) return '';
+  const [, year, month, day, hour, minute] = match;
+  const utcGuess = Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), 0);
+  let dt = new Date(utcGuess);
+  let offset = getTimeZoneOffsetMinutes(dt);
+  dt = new Date(utcGuess - offset * 60000);
+  const adjustedOffset = getTimeZoneOffsetMinutes(dt);
+  if (adjustedOffset !== offset) {
+    dt = new Date(utcGuess - adjustedOffset * 60000);
+  }
+  return dt.toISOString();
 }
 
 function escapeHtml(value) {
