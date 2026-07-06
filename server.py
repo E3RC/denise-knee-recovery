@@ -99,6 +99,8 @@ def resolve_static_path(pathname: str) -> Path | None:
         candidate = DOCS_DIR / "dashboard" / "index.html"
     elif pathname.startswith("/dashboard/") or pathname.startswith("/caregiver/"):
         candidate = DOCS_DIR / pathname.lstrip("/")
+        if pathname.endswith("/"):
+            candidate = candidate / "index.html"
     else:
         candidate = DOCS_DIR / pathname.lstrip("/")
         if pathname.endswith("/"):
