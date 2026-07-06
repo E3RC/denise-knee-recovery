@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Knee'd to Know | Meds</title>
+  <meta name="theme-color" content="#0f766e" />
+  <link rel="manifest" href="../manifest.webmanifest" />
+  <link rel="stylesheet" href="../dashboard.css" />
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div class="brand-row">
+        <img src="../icon.svg" alt="Knee'd to Know logo" class="brand-logo" />
+        <div>
+          <p class="eyebrow">Medication workspace</p>
+          <h1>Knee'd to Know</h1>
+        </div>
+      </div>
+      <p class="lede">Private medication tracking only. This page is where we will keep timer-ready schedules and Pushover-friendly reminder settings.</p>
+      <nav class="subnav" aria-label="Dashboard navigation">
+        <a class="subnav-link" href="/dashboard">Overview</a>
+        <a class="subnav-link is-active" href="/dashboard/meds/">Meds</a>
+      </nav>
+    </section>
+
+    <section class="grid">
+      <section class="card wide">
+        <div class="section-head">
+          <h2>Medication plan</h2>
+          <div class="section-actions">
+            <button id="add-medication" class="ghost" type="button">Add medication</button>
+            <button id="save-medications" class="ghost" type="button">Save meds</button>
+          </div>
+        </div>
+        <p class="small">Enter names and directions exactly as written on the bottle or discharge paperwork. No dose calculations are generated here.</p>
+        <form id="medication-form" class="stack"></form>
+      </section>
+
+      <section class="card">
+        <h2>Timer planning</h2>
+        <p class="small">Each logged dose becomes the starting point for the next timer.</p>
+        <div id="timer-preview" class="stack"></div>
+      </section>
+
+      <section class="card">
+        <h2>Pushover planning</h2>
+        <div id="pushover-preview" class="stack"></div>
+      </section>
+    </section>
+  </main>
+  <script src="meds.js"></script>
+</body>
+</html>

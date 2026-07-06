@@ -1,3 +1,5 @@
+const DISPLAY_TIMEZONE = 'America/Indiana/Indianapolis';
+
 async function loadUpdates() {
   const latestEl = document.getElementById('latest-content');
   const timelineEl = document.getElementById('timeline');
@@ -78,7 +80,8 @@ function formatDate(value) {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
-    year: 'numeric'
+    year: 'numeric',
+    timeZone: DISPLAY_TIMEZONE
   }).format(date);
 }
 
@@ -90,7 +93,9 @@ function formatDateTime(value) {
     day: 'numeric',
     year: 'numeric',
     hour: 'numeric',
-    minute: '2-digit'
+    minute: '2-digit',
+    timeZone: DISPLAY_TIMEZONE,
+    timeZoneName: 'short'
   }).format(date);
 }
 

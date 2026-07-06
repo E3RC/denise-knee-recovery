@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Denise Recovery Dashboard</title>
+  <title>Knee'd to Know | Caregiver Dashboard</title>
   <meta name="theme-color" content="#0f766e" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="stylesheet" href="dashboard.css" />
@@ -11,8 +11,13 @@
 <body>
   <main class="shell">
     <section class="hero">
+      <div class="brand-row">
+        <img src="icon.svg" alt="Knee'd to Know logo" class="brand-logo" />
+        <div>
       <p class="eyebrow">Caregiver dashboard</p>
-      <h1>Denise Recovery</h1>
+      <h1>Knee'd to Know</h1>
+        </div>
+      </div>
       <p class="lede">Phone-first recovery tracking for Brent. Local-only for now. No dose calculations. No surgeon instructions replaced.</p>
       <div class="hero-grid">
         <div class="hero-card">
@@ -39,6 +44,10 @@
         <input id="import-json" type="file" accept="application/json" hidden />
         <button id="logout" class="ghost" type="button">Lock dashboard</button>
       </div>
+      <nav class="subnav" aria-label="Dashboard navigation">
+        <a class="subnav-link is-active" href="/dashboard">Overview</a>
+        <a class="subnav-link" href="/dashboard/meds/">Meds</a>
+      </nav>
     </section>
 
     <section class="grid">
@@ -79,6 +88,15 @@
       <section class="card wide" id="follow-up-card">
         <h2>Daily Checklist</h2>
         <div id="checklist" class="checklist"></div>
+      </section>
+
+      <section class="card wide">
+        <div class="section-head">
+          <h2>Caregiver Quick Checks</h2>
+          <button id="reset-quick-checks" class="ghost" type="button">Clear quick checks</button>
+        </div>
+        <p class="small">Use these for one-tap caregiver entry during the day. Each tap logs a timestamped caregiver note and can also advance the daily checklist.</p>
+        <div id="quick-check-grid" class="quick-check-grid"></div>
       </section>
 
       <section class="card wide next-task">
@@ -142,6 +160,7 @@
         <div class="section-head">
           <h2>Medication Templates</h2>
           <div class="section-actions">
+            <a class="ghost nav-button" href="/dashboard/meds/">Open meds page</a>
             <button id="add-medication" class="ghost" type="button">Add medication</button>
             <button id="save-medications" class="ghost" type="button">Save meds</button>
           </div>
@@ -162,6 +181,17 @@
       <section class="card">
         <h2>Equipment</h2>
         <div id="equipment" class="stack"></div>
+      </section>
+
+      <section class="card wide">
+        <div class="section-head">
+          <h2>Photo Log</h2>
+          <div class="section-actions">
+            <button id="add-photo-log" class="ghost" type="button">Add photo entry</button>
+          </div>
+        </div>
+        <p class="small">Keep the actual images in a private folder or photo library outside Git. Record the filename or path here along with measurements for later comparison.</p>
+        <div id="photo-log" class="photo-log"></div>
       </section>
 
       <section class="card wide">

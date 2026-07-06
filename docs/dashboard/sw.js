@@ -2,6 +2,9 @@ const CACHE_NAME = 'denise-dashboard-v1';
 const PRECACHE = [
   './',
   './index.html',
+  './meds/',
+  './meds/index.html',
+  './meds/meds.js',
   './dashboard.css',
   './dashboard.js',
   './manifest.webmanifest',

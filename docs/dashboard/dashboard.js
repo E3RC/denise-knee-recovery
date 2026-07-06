@@ -1,16 +1,164 @@
 const STORAGE_KEY = 'denise-recovery-phase1';
 const DASHBOARD_STATE_URL = '/api/dashboard-state';
 const SURGERY_DATE = '2026-07-06';
-const CHECKLIST = [
-  'Pain',
-  'Walking',
-  'Exercises',
-  'Medications',
-  'Cold therapy',
-  'Hydration',
-  'Meals',
-  'Sleep',
-  'Bowel movements'
+const DISPLAY_TIMEZONE = 'America/Indiana/Indianapolis';
+const RECOVERY_FRAMEWORK = {
+  phases: [
+    {
+      key: 'surgery-day',
+      label: 'Surgery day',
+      dayStart: 1,
+      dayEnd: 1,
+      summary: 'Focus on arrival, discharge, comfort, first movement, hydration, and a calm handoff home.',
+      checklist: [
+        'Comfort check',
+        'Hydration',
+        'Walk',
+        'Ice & compression',
+        'Meals',
+        'Rest & elevate',
+        'Caregiver log'
+      ],
+      nextTaskHelp: 'Keep updates short, keep the leg elevated, and log the first successful walk and home arrival.'
+    },
+    {
+      key: 'early-home-recovery',
+      label: 'Early home recovery',
+      dayStart: 2,
+      dayEnd: 7,
+      summary: 'Short frequent walks, regular icing, daily exercises, bowel tracking, incision watching, and steady hydration.',
+      checklist: [
+        'Morning medication check',
+        'Breakfast / hydration',
+        'Walk',
+        'Exercises',
+        'Ice & compression',
+        'Lunch / hydration',
+        'Incision check',
+        'Dinner / hydration',
+        'Evening recovery log'
+      ],
+      nextTaskHelp: 'The packet guidance is short frequent walking, daily exercises, icing, elevation, and watching for redness, drainage, fever, or calf pain.'
+    },
+    {
+      key: 'week-two',
+      label: 'Week 2',
+      dayStart: 8,
+      dayEnd: 14,
+      summary: 'Keep the same recovery rhythm while increasing confidence, logging milestones, and preparing for follow-up.',
+      checklist: [
+        'Morning medication check',
+        'Breakfast / hydration',
+        'Walk',
+        'Exercises',
+        'Ice & elevation',
+        'Lunch / hydration',
+        'Milestone check',
+        'Dinner / hydration',
+        'Evening recovery log'
+      ],
+      nextTaskHelp: 'Keep exercise consistent even on harder days, and bring milestone progress and questions into PT or surgeon follow-up.'
+    },
+    {
+      key: 'weeks-three-to-six',
+      label: 'Weeks 3 to 6',
+      dayStart: 15,
+      dayEnd: 42,
+      summary: 'Progress the rehab routine, keep watching swelling and incision changes, and avoid rushing heavier activity.',
+      checklist: [
+        'Morning recovery check',
+        'Hydration',
+        'Walk',
+        'Exercises',
+        'Pain / swelling check',
+        'Meals',
+        'Milestone check',
+        'Evening recovery log'
+      ],
+      nextTaskHelp: 'The packet still limits heavy lifting, strenuous yard work, and twisting or running unless the surgeon clears it.'
+    },
+    {
+      key: 'longer-recovery',
+      label: 'Longer recovery',
+      dayStart: 43,
+      dayEnd: 9999,
+      summary: 'Track milestones, activity tolerance, swelling, and follow-up questions as function gradually returns.',
+      checklist: [
+        'Morning recovery check',
+        'Hydration',
+        'Walk',
+        'Exercises',
+        'Milestone check',
+        'Evening recovery log'
+      ],
+      nextTaskHelp: 'Expect improvement to keep building over months, not just days, and keep logging anything new or concerning.'
+    }
+  ],
+  redFlags: [
+    'Fever above 101',
+    'Incision drainage, odor, or wound opening',
+    'Bright red blood from the incision',
+    'Calf or groin pain',
+    'Excessive redness, warmth, or pus',
+    'Pain not controlled with ice, elevation, rest, and medication'
+  ]
+};
+
+const QUICK_CHECKS = [
+  {
+    id: 'med-check',
+    label: 'Medication check',
+    note: 'Medication schedule reviewed or medication given per instructions.',
+    checklistMatches: ['Morning medication check']
+  },
+  {
+    id: 'hydration-check',
+    label: 'Hydration',
+    note: 'Hydration offered and checked.',
+    checklistMatches: ['Hydration', 'Breakfast / hydration', 'Lunch / hydration', 'Dinner / hydration']
+  },
+  {
+    id: 'walk-check',
+    label: 'Walk done',
+    note: 'Short walk completed.',
+    checklistMatches: ['Walk']
+  },
+  {
+    id: 'exercise-check',
+    label: 'Exercises',
+    note: 'Exercise block completed.',
+    checklistMatches: ['Exercises']
+  },
+  {
+    id: 'ice-check',
+    label: 'Ice and elevate',
+    note: 'Ice and elevation session completed.',
+    checklistMatches: ['Ice & compression', 'Ice & elevation']
+  },
+  {
+    id: 'meal-check',
+    label: 'Meal',
+    note: 'Meal or snack completed.',
+    checklistMatches: ['Meals']
+  },
+  {
+    id: 'incision-check',
+    label: 'Incision check',
+    note: 'Incision checked with no urgent concern noted.',
+    checklistMatches: ['Incision check']
+  },
+  {
+    id: 'rest-check',
+    label: 'Rest and elevate',
+    note: 'Rest and elevation check completed.',
+    checklistMatches: ['Rest & elevate']
+  },
+  {
+    id: 'bowel-check',
+    label: 'Bowel check',
+    note: 'Bowel activity or constipation status reviewed.',
+    checklistMatches: []
+  }
 ];
 
 // Seed/default content stays separate from user-entered logs so the state can
@@ -42,14 +190,22 @@ const SEED = {
     {
       name: 'Prescription placeholder',
       dose: '',
+      purpose: '',
       instructions: 'Use discharge instructions exactly as written.',
       scheduled: 'Scheduled',
+      intervalHours: '',
       dueTime: 'TBD',
+      startRule: '',
+      stopRule: '',
+      ruleKey: '',
+      lastGivenAt: '',
+      nextDueAt: '',
       givenTime: '',
       givenBy: '',
       notes: 'Neutral placeholder until Brent adds actual bottle details.'
     }
   ],
+  photoLog: [],
   milestoneTemplates: [
     'Surgery complete',
     'First walk',
@@ -73,8 +229,11 @@ function createDefaultState() {
   return {
     patient: structuredClone(SEED.patient),
     surgeryDate: SURGERY_DATE,
+    checklistPhaseKey: '',
+    quickChecks: [],
     contacts: structuredClone(SEED.contacts),
     medicationTemplates: structuredClone(SEED.medicationTemplates),
+    photoLog: [],
     milestoneTemplates: SEED.milestoneTemplates.map(name => ({
       name,
       completed: false,
@@ -86,7 +245,7 @@ function createDefaultState() {
     notes: [],
     activityLog: [],
     dailyLog: [],
-    checklist: CHECKLIST.map(id => ({ id, done: false, at: null }))
+    checklist: []
   };
 }
 
@@ -102,6 +261,7 @@ const els = {
   caregiverLog: document.getElementById('caregiver-log'),
   equipment: document.getElementById('equipment'),
   notes: document.getElementById('notes'),
+  photoLog: document.getElementById('photo-log'),
   contactsForm: document.getElementById('contacts-form'),
   patientForm: document.getElementById('patient-form'),
   medicationForm: document.getElementById('medication-form'),
@@ -112,10 +272,13 @@ const els = {
   saveContacts: document.getElementById('save-contacts'),
   saveMedications: document.getElementById('save-medications'),
   addMedication: document.getElementById('add-medication'),
+  addPhotoLog: document.getElementById('add-photo-log'),
   addLogEntry: document.getElementById('add-log-entry'),
   quickMedicationLog: document.getElementById('quick-medication-log'),
   quickAnxietyLog: document.getElementById('quick-anxiety-log'),
   quickFastingLog: document.getElementById('quick-fasting-log'),
+  quickCheckGrid: document.getElementById('quick-check-grid'),
+  resetQuickChecks: document.getElementById('reset-quick-checks'),
   addMilestone: document.getElementById('add-milestone'),
   form: document.getElementById('event-form'),
   reset: document.getElementById('reset-demo'),
@@ -185,6 +348,13 @@ function exportCsv() {
         item.when || '',
         [item.status, item.details].filter(Boolean).join(' - ')
       ]),
+      ...state.photoLog.map(item => [
+        'Photo log',
+        item.when || '',
+        [item.label, item.fileRef, item.storage, item.circumference, item.swelling, item.bruising, item.incision, item.rom, item.notes]
+          .filter(Boolean)
+          .join(' | ')
+      ]),
       ...state.timeline.map(item => [item.type || 'Timeline', item.at || '', item.text || '']),
       ...state.meds.map(item => [item.type || 'Medication', item.at || '', item.text || '']),
       ...state.notes.map(item => [item.type || 'Note', item.at || '', item.text || ''])
@@ -211,6 +381,13 @@ async function importState(file) {
 function normalizeState(next) {
   const merged = { ...structuredClone(DEFAULT_STATE), ...next };
   merged.patient = { ...DEFAULT_STATE.patient, ...(next?.patient || {}) };
+  merged.checklistPhaseKey = typeof next?.checklistPhaseKey === 'string' ? next.checklistPhaseKey : '';
+  merged.quickChecks = Array.isArray(next?.quickChecks)
+    ? next.quickChecks.map(item => ({
+        id: String(item?.id || ''),
+        at: normalizeLogTime(item?.at)
+      })).filter(item => item.id)
+    : [];
   merged.checklist = Array.isArray(next?.checklist)
     ? next.checklist.map(item => ({
         id: String(item.id || ''),
@@ -228,14 +405,35 @@ function normalizeState(next) {
     ? next.medicationTemplates.map(item => ({
         name: String(item?.name || ''),
         dose: String(item?.dose || ''),
+        purpose: String(item?.purpose || ''),
         instructions: String(item?.instructions || ''),
         scheduled: String(item?.scheduled || ''),
+        intervalHours: String(item?.intervalHours || ''),
         dueTime: String(item?.dueTime || ''),
+        startRule: String(item?.startRule || ''),
+        stopRule: String(item?.stopRule || ''),
+        ruleKey: String(item?.ruleKey || ''),
+        lastGivenAt: String(item?.lastGivenAt || ''),
+        nextDueAt: String(item?.nextDueAt || ''),
         givenTime: String(item?.givenTime || ''),
         givenBy: String(item?.givenBy || ''),
         notes: String(item?.notes || '')
       }))
     : structuredClone(DEFAULT_STATE.medicationTemplates);
+  merged.photoLog = Array.isArray(next?.photoLog)
+    ? next.photoLog.map(item => ({
+        when: normalizeLogTime(item?.when),
+        label: String(item?.label || '').trim(),
+        fileRef: String(item?.fileRef || '').trim(),
+        storage: String(item?.storage || '').trim(),
+        circumference: String(item?.circumference || '').trim(),
+        swelling: String(item?.swelling || '').trim(),
+        bruising: String(item?.bruising || '').trim(),
+        incision: String(item?.incision || '').trim(),
+        rom: String(item?.rom || '').trim(),
+        notes: String(item?.notes || '').trim()
+      })).filter(item => item.when || item.label || item.fileRef || item.storage || item.circumference || item.swelling || item.bruising || item.incision || item.rom || item.notes)
+    : [];
 
   const legacyHistory = Array.isArray(next?.milestoneHistory) ? next.milestoneHistory : [];
   const historyByName = new Map();
@@ -305,6 +503,27 @@ function recoveryDay() {
   return Math.max(0, diff + 1);
 }
 
+function currentPhase() {
+  const day = recoveryDay();
+  return RECOVERY_FRAMEWORK.phases.find(phase => day >= phase.dayStart && day <= phase.dayEnd) || RECOVERY_FRAMEWORK.phases.at(-1);
+}
+
+function syncChecklistForPhase() {
+  const phase = currentPhase();
+  if (!phase) return false;
+  if (state.checklistPhaseKey === phase.key && Array.isArray(state.checklist) && state.checklist.length) {
+    return false;
+  }
+
+  const existing = new Map((state.checklist || []).map(item => [item.id, item]));
+  state.checklist = phase.checklist.map(id => {
+    const saved = existing.get(id);
+    return saved ? { id, done: Boolean(saved.done), at: saved.at || null } : { id, done: false, at: null };
+  });
+  state.checklistPhaseKey = phase.key;
+  return true;
+}
+
 function countdownText() {
   const now = new Date();
   const surgery = new Date(`${state.surgeryDate}T12:00:00`);
@@ -316,17 +535,24 @@ function countdownText() {
 }
 
 function render() {
+  const phaseChanged = syncChecklistForPhase();
+  const phase = currentPhase();
+  if (phaseChanged) {
+    saveState(false);
+  }
   els.surgeryDate.value = state.surgeryDate || SURGERY_DATE;
   els.day.textContent = `Day ${recoveryDay()}`;
   els.countdown.textContent = countdownText();
   renderContactsForm();
   renderPatientForm();
   renderMedicationForm();
+  renderPhotoLog();
   renderMilestones();
   renderCaregiverLog();
+  renderQuickChecks();
   els.today.innerHTML = renderTodayTasks();
   els.checklist.innerHTML = state.checklist.map(renderChecklist).join('');
-  els.nextTask.innerHTML = renderNextTask();
+  els.nextTask.innerHTML = renderNextTask(phase);
   els.followUpSummary.innerHTML = `<div class="summary-text">${escapeHtml(buildFollowUpSummary())}</div>`;
   els.activity.innerHTML = state.activityLog.length ? state.activityLog.slice().reverse().map(renderEntry).join('') : empty('No activity logged yet.');
   els.equipment.innerHTML = state.equipment.map(item => `
@@ -383,23 +609,39 @@ function renderChecklist(item, index) {
   `;
 }
 
-function renderNextTask() {
+function renderQuickChecks() {
+  const quickState = new Map((state.quickChecks || []).map(item => [item.id, item.at]));
+  els.quickCheckGrid.innerHTML = QUICK_CHECKS.map(item => {
+    const at = quickState.get(item.id);
+    return `
+      <button type="button" class="quick-check ${at ? 'is-done' : ''}" data-quick-check="${escapeHtml(item.id)}">
+        <div>
+          <strong>${escapeHtml(item.label)}</strong>
+          <p class="small">${escapeHtml(item.note)}</p>
+        </div>
+        <span class="quick-check-status">${at ? `Logged ${escapeHtml(formatTime(at))}` : 'Tap to log'}</span>
+      </button>
+    `;
+  }).join('');
+}
+
+function renderNextTask(phase) {
   const next = state.checklist.find(item => !item.done);
   if (next) {
     return `
       <div class="item-head">
         <strong>${escapeHtml(next.id)}</strong>
-        <span class="tag">Do next</span>
+        <span class="tag">${escapeHtml(phase?.label || 'Do next')}</span>
       </div>
-      <p class="small">Use this as the next recovery action. Mark it done when complete.</p>
+      <p class="small">${escapeHtml(phase?.nextTaskHelp || 'Use this as the next recovery action. Mark it done when complete.')}</p>
     `;
   }
   return `
     <div class="item-head">
       <strong>All checklist items complete</strong>
-      <span class="tag">Good</span>
+      <span class="tag">${escapeHtml(phase?.label || 'Good')}</span>
     </div>
-    <p class="small">Add the next event, note, or follow-up as needed.</p>
+    <p class="small">${escapeHtml(phase?.summary || 'Add the next event, note, or follow-up as needed.')}</p>
   `;
 }
 
@@ -419,13 +661,23 @@ function renderMedicationForm() {
       <input data-med-index="${index}" data-med-field="name" value="${escapeHtml(item.name)}" placeholder="Medication name" />
       <span>Dose</span>
       <input data-med-index="${index}" data-med-field="dose" value="${escapeHtml(item.dose)}" placeholder="Enter exact dose" />
+      <span>Purpose</span>
+      <input data-med-index="${index}" data-med-field="purpose" value="${escapeHtml(item.purpose || '')}" placeholder="Purpose" />
       <span>Instructions</span>
       <textarea data-med-index="${index}" data-med-field="instructions" rows="3" placeholder="Enter exact instructions">${escapeHtml(item.instructions || '')}</textarea>
       <span class="small">Store instructions exactly as Brent enters them. No dosing advice is generated here.</span>
       <span>Scheduled or PRN</span>
       <input data-med-index="${index}" data-med-field="scheduled" value="${escapeHtml(item.scheduled)}" placeholder="Scheduled or PRN" />
+      <span>Interval hours</span>
+      <input data-med-index="${index}" data-med-field="intervalHours" value="${escapeHtml(item.intervalHours || '')}" placeholder="4, 6, 8, 12, 24" />
       <span>Due time</span>
       <input data-med-index="${index}" data-med-field="dueTime" value="${escapeHtml(item.dueTime)}" placeholder="TBD" />
+      <span>Start rule</span>
+      <input data-med-index="${index}" data-med-field="startRule" value="${escapeHtml(item.startRule || '')}" placeholder="Start rule" />
+      <span>Stop rule</span>
+      <input data-med-index="${index}" data-med-field="stopRule" value="${escapeHtml(item.stopRule || '')}" placeholder="Stop rule" />
+      <span>Rule key</span>
+      <input data-med-index="${index}" data-med-field="ruleKey" value="${escapeHtml(item.ruleKey || '')}" placeholder="Optional special rule" />
       <span>Given time</span>
       <input data-med-index="${index}" data-med-field="givenTime" value="${escapeHtml(item.givenTime)}" />
       <span>Given by</span>
@@ -435,6 +687,56 @@ function renderMedicationForm() {
       <button type="button" class="ghost" data-med-remove="${index}">Remove medication</button>
     </label>
   `).join('');
+}
+
+function renderPhotoLog() {
+  els.photoLog.innerHTML = state.photoLog.length ? state.photoLog.map((item, index) => `
+    <div class="photo-row">
+      <label class="photo-cell">
+        <span>When</span>
+        <input type="datetime-local" data-photo-index="${index}" data-photo-field="when" value="${escapeHtml(toDatetimeLocalValue(item.when))}" />
+      </label>
+      <label class="photo-cell">
+        <span>Label</span>
+        <input data-photo-index="${index}" data-photo-field="label" value="${escapeHtml(item.label)}" placeholder="Before, after, or follow-up" />
+      </label>
+      <label class="photo-cell">
+        <span>File reference</span>
+        <input data-photo-index="${index}" data-photo-field="fileRef" value="${escapeHtml(item.fileRef)}" placeholder="Filename or path" />
+      </label>
+      <label class="photo-cell">
+        <span>Storage location</span>
+        <input data-photo-index="${index}" data-photo-field="storage" value="${escapeHtml(item.storage)}" placeholder="Private album, folder, or drive" />
+      </label>
+      <label class="photo-cell">
+        <span>Circumference</span>
+        <input data-photo-index="${index}" data-photo-field="circumference" value="${escapeHtml(item.circumference)}" placeholder="Measurement and unit" />
+      </label>
+      <label class="photo-cell">
+        <span>Swelling</span>
+        <input data-photo-index="${index}" data-photo-field="swelling" value="${escapeHtml(item.swelling)}" placeholder="Observed swelling" />
+      </label>
+      <label class="photo-cell">
+        <span>Bruising</span>
+        <input data-photo-index="${index}" data-photo-field="bruising" value="${escapeHtml(item.bruising)}" placeholder="Observed bruising" />
+      </label>
+      <label class="photo-cell">
+        <span>Incision / scar</span>
+        <input data-photo-index="${index}" data-photo-field="incision" value="${escapeHtml(item.incision)}" placeholder="Incision appearance" />
+      </label>
+      <label class="photo-cell">
+        <span>ROM</span>
+        <input data-photo-index="${index}" data-photo-field="rom" value="${escapeHtml(item.rom)}" placeholder="Range of motion note" />
+      </label>
+      <label class="photo-cell photo-notes">
+        <span>Notes</span>
+        <textarea data-photo-index="${index}" data-photo-field="notes" rows="3" placeholder="Any comparison notes">${escapeHtml(item.notes)}</textarea>
+      </label>
+      <div class="photo-controls">
+        <button type="button" class="ghost" data-photo-remove="${index}">Delete</button>
+      </div>
+    </div>
+  `).join('') : '<div class="item muted">No photo entries yet. Add the before photo baseline first.</div>';
 }
 
 function renderMilestones() {
@@ -496,12 +798,42 @@ function renderTodayTasks() {
 }
 
 function deriveTodayTasks() {
-  const tasks = ['Recovery medication check', 'Hydration', 'Walk', 'Ice & compression', 'Exercises', 'Rest & elevate'];
+  const phase = currentPhase();
+  const tasks = phase?.checklist || [];
   const completed = new Set(state.checklist.filter(item => item.done).map(item => item.id));
   return tasks.filter(task => !completed.has(task));
 }
 
+function addOrUpdateQuickCheck(id) {
+  const quick = QUICK_CHECKS.find(item => item.id === id);
+  if (!quick) return;
+  const now = new Date().toISOString();
+  const existing = state.quickChecks.find(item => item.id === id);
+  if (existing) existing.at = now;
+  else state.quickChecks.push({ id, at: now });
+
+  let matchedChecklist = null;
+  for (const checklistId of quick.checklistMatches) {
+    const item = state.checklist.find(entry => entry.id === checklistId && !entry.done);
+    if (item) {
+      item.done = true;
+      item.at = now;
+      matchedChecklist = item.id;
+      break;
+    }
+  }
+
+  state.dailyLog.unshift({
+    when: now,
+    status: quick.label,
+    details: matchedChecklist ? `${quick.note} Checklist advanced: ${matchedChecklist}.` : quick.note
+  });
+  state.activityLog.push(stamp(`${quick.label} logged${matchedChecklist ? ` and marked ${matchedChecklist}` : ''}`, 'Quick check'));
+  persistAndRender();
+}
+
 function buildFollowUpSummary() {
+  const phase = currentPhase();
   const completed = state.checklist.filter(item => item.done).length;
   const total = state.checklist.length;
   const surgery = state.surgeryDate || SURGERY_DATE;
@@ -514,6 +846,12 @@ function buildFollowUpSummary() {
     const details = item.details || 'No details';
     return `- ${when}: ${status} - ${details}`;
   }).join('\n');
+  const recentPhotos = state.photoLog.slice(-3).map(item => {
+    const when = formatDateTime(item.when) || 'No time';
+    const label = item.label || 'Photo';
+    const fileRef = item.fileRef || 'No file reference';
+    return `- ${when}: ${label} (${fileRef})`;
+  }).join('\n');
   return [
     `Patient: ${patient.name || 'Unknown'}`,
     `Caregiver: ${patient.caregiver || 'Unknown'}`,
@@ -523,12 +861,18 @@ function buildFollowUpSummary() {
     `Weight-bearing: ${patient.weightBearing || 'Not entered yet'}`,
     `Follow-up date: ${patient.followUpDate || 'Not entered yet'}`,
     `Recovery day: Day ${recoveryDay()}`,
+    `Recovery phase: ${phase?.label || 'Unknown'}`,
     `Checklist: ${completed}/${total} complete`,
     `Next task: ${state.checklist.find(item => !item.done)?.id || 'All checklist items complete'}`,
+    `Phase guidance: ${phase?.summary || 'No current phase guidance'}`,
     `Pending checklist:`,
     pending || '- None',
+    `Red flags to watch:`,
+    ...RECOVERY_FRAMEWORK.redFlags.map(flag => `- ${flag}`),
     `Recent caregiver log:`,
     recentLog || '- No caregiver log entries yet',
+    `Recent photo log:`,
+    recentPhotos || '- No photo entries yet',
     `Recent activity:`,
     recent || '- No recent activity'
   ].join('\n');
@@ -552,7 +896,11 @@ function empty(text) {
 
 function formatTime(value) {
   const dt = new Date(value);
-  return Number.isNaN(dt.getTime()) ? '' : new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' }).format(dt);
+  return Number.isNaN(dt.getTime()) ? '' : new Intl.DateTimeFormat('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone: DISPLAY_TIMEZONE
+  }).format(dt);
 }
 
 function formatDateTime(value) {
@@ -561,7 +909,9 @@ function formatDateTime(value) {
     month: 'short',
     day: 'numeric',
     hour: 'numeric',
-    minute: '2-digit'
+    minute: '2-digit',
+    timeZone: DISPLAY_TIMEZONE,
+    timeZoneName: 'short'
   }).format(dt);
 }
 
@@ -590,8 +940,8 @@ function csvCell(value) {
 
 els.surgeryDate.addEventListener('change', () => {
   state.surgeryDate = els.surgeryDate.value || SURGERY_DATE;
-  saveState();
   render();
+  saveState();
 });
 
 els.checklist.addEventListener('change', (event) => {
@@ -641,6 +991,16 @@ els.medicationForm.addEventListener('input', event => {
   item[field] = target.value;
 });
 
+els.photoLog.addEventListener('input', event => {
+  const target = event.target.closest('[data-photo-index][data-photo-field]');
+  if (!target) return;
+  const index = Number(target.dataset.photoIndex);
+  const item = state.photoLog[index];
+  if (!item) return;
+  const field = target.dataset.photoField;
+  item[field] = field === 'when' ? normalizeLogTime(target.value) : target.value;
+});
+
 els.milestones.addEventListener('input', event => {
   const target = event.target.closest('[data-milestone-index][data-milestone-field]');
   if (!target) return;
@@ -663,6 +1023,7 @@ els.caregiverLog.addEventListener('input', event => {
 els.contactsForm.addEventListener('blur', persistAndRender, true);
 els.patientForm.addEventListener('blur', persistAndRender, true);
 els.medicationForm.addEventListener('blur', persistAndRender, true);
+els.photoLog.addEventListener('blur', persistAndRender, true);
 els.milestones.addEventListener('blur', persistAndRender, true);
 els.caregiverLog.addEventListener('blur', persistAndRender, true);
 
@@ -673,11 +1034,33 @@ els.addMedication.addEventListener('click', () => {
   state.medicationTemplates.push({
     name: '',
     dose: '',
+    purpose: '',
     instructions: '',
     scheduled: '',
+    intervalHours: '',
     dueTime: '',
+    startRule: '',
+    stopRule: '',
+    ruleKey: '',
+    lastGivenAt: '',
+    nextDueAt: '',
     givenTime: '',
     givenBy: '',
+    notes: ''
+  });
+  persistAndRender();
+});
+els.addPhotoLog.addEventListener('click', () => {
+  state.photoLog.unshift({
+    when: new Date().toISOString(),
+    label: '',
+    fileRef: '',
+    storage: '',
+    circumference: '',
+    swelling: '',
+    bruising: '',
+    incision: '',
+    rom: '',
     notes: ''
   });
   persistAndRender();
@@ -712,6 +1095,17 @@ els.quickFastingLog.addEventListener('click', () => {
   addQuickCaregiverLog('Pre-op / fasting', 'Denise knew she had to stop eating by midnight.');
 });
 
+els.quickCheckGrid.addEventListener('click', event => {
+  const button = event.target.closest('[data-quick-check]');
+  if (!button) return;
+  addOrUpdateQuickCheck(button.dataset.quickCheck);
+});
+
+els.resetQuickChecks.addEventListener('click', () => {
+  state.quickChecks = [];
+  persistAndRender();
+});
+
 els.caregiverLog.addEventListener('click', event => {
   const button = event.target.closest('[data-log-remove]');
   if (!button) return;
@@ -731,14 +1125,30 @@ els.medicationForm.addEventListener('click', event => {
     state.medicationTemplates.push({
       name: '',
       dose: '',
+      purpose: '',
       instructions: '',
       scheduled: '',
+      intervalHours: '',
       dueTime: '',
+      startRule: '',
+      stopRule: '',
+      ruleKey: '',
+      lastGivenAt: '',
+      nextDueAt: '',
       givenTime: '',
       givenBy: '',
       notes: ''
     });
   }
+  persistAndRender();
+});
+
+els.photoLog.addEventListener('click', event => {
+  const button = event.target.closest('[data-photo-remove]');
+  if (!button) return;
+  const index = Number(button.dataset.photoRemove);
+  if (!Number.isFinite(index)) return;
+  state.photoLog.splice(index, 1);
   persistAndRender();
 });
 
