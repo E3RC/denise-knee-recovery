@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.denise.recovery.reminders</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/zsh</string>
+    <string>-lc</string>
+    <string>set -a &amp;&amp; . &quot;$HOME/Library/Application Support/DeniseRecovery/reminders.env&quot; &amp;&amp; set +a &amp;&amp; cd &quot;$HOME/Library/Application Support/DeniseRecovery/reminder-runner&quot; &amp;&amp; python3 pushover_reminders.py</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/Users/bsoper/Library/Application Support/DeniseRecovery/reminder-runner</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>REMINDER_CONFIG_PATH</key>
+    <string>/Users/bsoper/Library/Application Support/DeniseRecovery/reminder-runner/reminders.json</string>
+    <key>REMINDER_STATE_PATH</key>
+    <string>/Users/bsoper/Library/Application Support/DeniseRecovery/reminder-runner/reminder-state.json</string>
+    <key>REMINDER_WINDOW_MINUTES</key>
+    <string>30</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>StartInterval</key>
+  <integer>60</integer>
+  <key>StandardOutPath</key>
+  <string>/Users/bsoper/Library/Application Support/DeniseRecovery/reminder-runner/reminders-launchd.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/bsoper/Library/Application Support/DeniseRecovery/reminder-runner/reminders-launchd.err</string>
+</dict>
+</plist>

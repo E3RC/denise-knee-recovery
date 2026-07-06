@@ -131,6 +131,16 @@ cp templates/reminders.example.json data/reminders.json
 python3 scripts/pushover_reminders.py
 ```
 
+For this Mac, the simplest always-on option is the included launchd agent:
+
+```bash
+bash scripts/install-reminders-launchd.sh
+```
+
+The installer copies only the Pushover keys into `~/Library/Application Support/DeniseRecovery/reminders.env` so launchd can read them without depending on the repo path.
+It also copies the reminder runner and `data/reminders.json` into `~/Library/Application Support/DeniseRecovery/reminder-runner/` because launchd on this Mac cannot read the repo under `Documents` reliably.
+On this Mac the launchd agent checks every minute and uses a 30-minute catch-up window so it can still deliver reminders if the machine wakes a little late.
+
 It reads:
 - `PUSHOVER_USER_KEY`
 - `PUSHOVER_APP_TOKEN`
@@ -143,6 +153,8 @@ Recommended cron on `mele01`:
 ```
 
 The reminder template already includes starter items for meals, medication checks, walks, exercises, and a PT follow-up example. Update the times and messages once Denise's real discharge plan is fully entered.
+
+If reminders still do not arrive, check the launchd logs in `~/Library/Application Support/DeniseRecovery/reminder-runner/reminders-launchd.log` and `~/Library/Application Support/DeniseRecovery/reminder-runner/reminders-launchd.err`, then run `python3 scripts/pushover_reminders.py` once by hand to confirm the key path is still good.
 
 ## Caregiver sign-in
 

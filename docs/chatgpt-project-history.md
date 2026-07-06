@@ -40,3 +40,9 @@ Avoid regenerating existing files. Always inspect the current codebase before im
 
 ## Next Major Feature
 Implement a Recovery Engine that drives the UI state (Pre-op, Surgery Day, Home Recovery, Weeks 2-6) and powers the dynamic "What's Next" panel, task scheduling, milestone progression, and daily workflow.
+
+## Ops Update
+- Local Pushover reminders on the Mac run through a launchd agent because the repo lives under `Documents` and launchd cannot reliably read that path here.
+- The launchd copy uses support-folder secrets and a support-folder runner copy under `~/Library/Application Support/DeniseRecovery/reminder-runner/`.
+- Reminder delivery is intentionally frequent and forgiving so scheduled items are less likely to be missed if the machine wakes late.
+- Keep all PII and secrets out of public pages and Git history.
