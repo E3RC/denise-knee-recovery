@@ -126,7 +126,11 @@ def parse_cookies(header: str) -> dict[str, str]:
 
 
 def is_private_path(pathname: str) -> bool:
-    return pathname == "/dashboard" or pathname.startswith("/dashboard/") or pathname == "/api/dashboard-state"
+    if pathname == "/api/dashboard-state":
+        return True
+    if pathname == "/dashboard" or pathname == "/dashboard/":
+        return True
+    return False
 
 
 class Handler(BaseHTTPRequestHandler):
