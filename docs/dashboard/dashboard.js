@@ -264,14 +264,11 @@ const els = {
   photoLog: document.getElementById('photo-log'),
   contactsForm: document.getElementById('contacts-form'),
   patientForm: document.getElementById('patient-form'),
-  medicationForm: document.getElementById('medication-form'),
   milestones: document.getElementById('milestones'),
   nextTask: document.getElementById('next-task'),
   followUpSummary: document.getElementById('follow-up-summary'),
   savePatient: document.getElementById('save-patient'),
   saveContacts: document.getElementById('save-contacts'),
-  saveMedications: document.getElementById('save-medications'),
-  addMedication: document.getElementById('add-medication'),
   addPhotoLog: document.getElementById('add-photo-log'),
   addLogEntry: document.getElementById('add-log-entry'),
   quickMedicationLog: document.getElementById('quick-medication-log'),
@@ -545,7 +542,6 @@ function render() {
   els.countdown.textContent = countdownText();
   renderContactsForm();
   renderPatientForm();
-  renderMedicationForm();
   renderPhotoLog();
   renderMilestones();
   renderCaregiverLog();
@@ -650,41 +646,6 @@ function renderContactsForm() {
     <label>
       <span>${escapeHtml(item.label)}</span>
       <input data-contact-index="${index}" data-contact-field="value" value="${escapeHtml(item.value)}" />
-    </label>
-  `).join('');
-}
-
-function renderMedicationForm() {
-  els.medicationForm.innerHTML = state.medicationTemplates.map((item, index) => `
-    <label>
-      <span>Medication name</span>
-      <input data-med-index="${index}" data-med-field="name" value="${escapeHtml(item.name)}" placeholder="Medication name" />
-      <span>Dose</span>
-      <input data-med-index="${index}" data-med-field="dose" value="${escapeHtml(item.dose)}" placeholder="Enter exact dose" />
-      <span>Purpose</span>
-      <input data-med-index="${index}" data-med-field="purpose" value="${escapeHtml(item.purpose || '')}" placeholder="Purpose" />
-      <span>Instructions</span>
-      <textarea data-med-index="${index}" data-med-field="instructions" rows="3" placeholder="Enter exact instructions">${escapeHtml(item.instructions || '')}</textarea>
-      <span class="small">Store instructions exactly as Brent enters them. No dosing advice is generated here.</span>
-      <span>Scheduled or PRN</span>
-      <input data-med-index="${index}" data-med-field="scheduled" value="${escapeHtml(item.scheduled)}" placeholder="Scheduled or PRN" />
-      <span>Interval hours</span>
-      <input data-med-index="${index}" data-med-field="intervalHours" value="${escapeHtml(item.intervalHours || '')}" placeholder="4, 6, 8, 12, 24" />
-      <span>Due time</span>
-      <input data-med-index="${index}" data-med-field="dueTime" value="${escapeHtml(item.dueTime)}" placeholder="TBD" />
-      <span>Start rule</span>
-      <input data-med-index="${index}" data-med-field="startRule" value="${escapeHtml(item.startRule || '')}" placeholder="Start rule" />
-      <span>Stop rule</span>
-      <input data-med-index="${index}" data-med-field="stopRule" value="${escapeHtml(item.stopRule || '')}" placeholder="Stop rule" />
-      <span>Rule key</span>
-      <input data-med-index="${index}" data-med-field="ruleKey" value="${escapeHtml(item.ruleKey || '')}" placeholder="Optional special rule" />
-      <span>Given time</span>
-      <input data-med-index="${index}" data-med-field="givenTime" value="${escapeHtml(item.givenTime)}" />
-      <span>Given by</span>
-      <input data-med-index="${index}" data-med-field="givenBy" value="${escapeHtml(item.givenBy)}" />
-      <span>Notes</span>
-      <textarea data-med-index="${index}" data-med-field="notes" rows="3">${escapeHtml(item.notes)}</textarea>
-      <button type="button" class="ghost" data-med-remove="${index}">Remove medication</button>
     </label>
   `).join('');
 }
@@ -1025,16 +986,6 @@ els.patientForm.addEventListener('input', event => {
   }
 });
 
-els.medicationForm.addEventListener('input', event => {
-  const target = event.target.closest('[data-med-index][data-med-field]');
-  if (!target) return;
-  const index = Number(target.dataset.medIndex);
-  const item = state.medicationTemplates[index];
-  if (!item) return;
-  const field = target.dataset.medField;
-  item[field] = target.value;
-});
-
 els.photoLog.addEventListener('input', event => {
   const target = event.target.closest('[data-photo-index][data-photo-field]');
   if (!target) return;
@@ -1066,34 +1017,12 @@ els.caregiverLog.addEventListener('input', event => {
 
 els.contactsForm.addEventListener('blur', persistAndRender, true);
 els.patientForm.addEventListener('blur', persistAndRender, true);
-els.medicationForm.addEventListener('blur', persistAndRender, true);
 els.photoLog.addEventListener('blur', persistAndRender, true);
 els.milestones.addEventListener('blur', persistAndRender, true);
 els.caregiverLog.addEventListener('blur', persistAndRender, true);
 
 els.savePatient.addEventListener('click', persistAndRender);
 els.saveContacts.addEventListener('click', persistAndRender);
-els.saveMedications.addEventListener('click', persistAndRender);
-els.addMedication.addEventListener('click', () => {
-  state.medicationTemplates.push({
-    name: '',
-    dose: '',
-    purpose: '',
-    instructions: '',
-    scheduled: '',
-    intervalHours: '',
-    dueTime: '',
-    startRule: '',
-    stopRule: '',
-    ruleKey: '',
-    lastGivenAt: '',
-    nextDueAt: '',
-    givenTime: '',
-    givenBy: '',
-    notes: ''
-  });
-  persistAndRender();
-});
 els.addPhotoLog.addEventListener('click', () => {
   state.photoLog.unshift({
     when: new Date().toISOString(),
@@ -1156,34 +1085,6 @@ els.caregiverLog.addEventListener('click', event => {
   const index = Number(button.dataset.logRemove);
   if (!Number.isFinite(index)) return;
   state.dailyLog.splice(index, 1);
-  persistAndRender();
-});
-
-els.medicationForm.addEventListener('click', event => {
-  const button = event.target.closest('[data-med-remove]');
-  if (!button) return;
-  const index = Number(button.dataset.medRemove);
-  if (!Number.isFinite(index)) return;
-  state.medicationTemplates.splice(index, 1);
-  if (!state.medicationTemplates.length) {
-    state.medicationTemplates.push({
-      name: '',
-      dose: '',
-      purpose: '',
-      instructions: '',
-      scheduled: '',
-      intervalHours: '',
-      dueTime: '',
-      startRule: '',
-      stopRule: '',
-      ruleKey: '',
-      lastGivenAt: '',
-      nextDueAt: '',
-      givenTime: '',
-      givenBy: '',
-      notes: ''
-    });
-  }
   persistAndRender();
 });
 
