@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Denise Recovery">
+  <rect width="256" height="256" rx="56" fill="#0f766e"/>
+  <path d="M72 128c0-30.9 25.1-56 56-56s56 25.1 56 56-25.1 56-56 56-56-25.1-56-56z" fill="#f3f5f7"/>
+  <path d="M128 76v52l36 20" fill="none" stroke="#0f766e" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M92 192h72" fill="none" stroke="#f3f5f7" stroke-width="14" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,17 @@
+{
+  "name": "Denise Recovery Dashboard",
+  "short_name": "Denise Recovery",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f3f5f7",
+  "theme_color": "#0f766e",
+  "description": "Phone-first caregiver dashboard for Denise's recovery.",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
