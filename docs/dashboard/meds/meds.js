@@ -10,6 +10,9 @@ const els = {
   backToList: document.getElementById('back-to-list'),
   markDispensed: document.getElementById('mark-dispensed'),
   detailTitle: document.getElementById('detail-title'),
+  detailCard: document.getElementById('medication-detail-card'),
+  timerCard: document.getElementById('timer-card'),
+  pushoverCard: document.getElementById('pushover-card'),
   timerPreview: document.getElementById('timer-preview'),
   pushoverPreview: document.getElementById('pushover-preview')
 };
@@ -37,6 +40,7 @@ let state = {
   medicationTemplates: [structuredClone(DEFAULT_MED)]
 };
 let selectedMedicationIndex = 0;
+let detailMode = false;
 
 function escapeHtml(value) {
   return String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
@@ -219,22 +223,28 @@ function renderMedicationList() {
   els.medicationList.innerHTML = state.medicationTemplates.map((item, index) => `
     <div class="item">
       <div class="item-head">
-        <div>
-          <strong>${escapeHtml(item.name || `Medication ${index + 1}`)}</strong>
-          <p class="small">${escapeHtml(item.dose || 'Dose not entered')}</p>
-        </div>
-        <span class="tag">${item.dispensed ? 'Dispensed' : 'Not dispensed'}</span>
+        <button type="button" class="ghost" data-open-med="${index}">${escapeHtml(item.name || `Medication ${index + 1}`)}</button>
+        <button type="button" class="${item.dispensed ? 'primary' : 'ghost'}" data-toggle-dispensed="${index}">${item.dispensed ? 'Dispensed' : 'Not dispensed'}</button>
       </div>
-      <div class="section-actions">
-        <button type="button" class="ghost" data-open-med="${index}">Open medication</button>
-        <button type="button" class="ghost" data-toggle-dispensed="${index}">${item.dispensed ? 'Mark not dispensed' : 'Mark dispensed'}</button>
-      </div>
+      <p class="small">Next dose at ${escapeHtml(formatTimeOnly(item.nextDueAt) || 'not set')}</p>
     </div>
   `).join('');
 }
 
+function formatTimeOnly(value) {
+  const dt = new Date(value);
+  return Number.isNaN(dt.getTime()) ? '' : new Intl.DateTimeFormat('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone: DISPLAY_TIMEZONE
+  }).format(dt);
+}
+
 function renderMedicationForm() {
   const item = getSelectedMedication();
+  els.detailCard.hidden = !detailMode;
+  els.timerCard.hidden = !detailMode;
+  els.pushoverCard.hidden = !detailMode;
   if (!item) {
     els.detailTitle.textContent = 'Medication details';
     els.medicationForm.innerHTML = '<div class="item muted">Add a medication to get started.</div>';
@@ -375,6 +385,7 @@ els.medicationList.addEventListener('click', event => {
   const openButton = event.target.closest('[data-open-med]');
   if (openButton) {
     setSelectedMedication(Number(openButton.dataset.openMed));
+    detailMode = true;
     render();
     return;
   }
@@ -392,6 +403,7 @@ els.medicationList.addEventListener('click', event => {
 els.addMedication.addEventListener('click', () => {
   state.medicationTemplates.push(structuredClone(DEFAULT_MED));
   setSelectedMedication(state.medicationTemplates.length - 1);
+  detailMode = true;
   saveState();
   render();
 });
@@ -402,7 +414,10 @@ els.saveMedications.addEventListener('click', () => {
 });
 
 els.backToList.addEventListener('click', () => {
+  detailMode = false;
+  window.history.replaceState({}, '', '/dashboard/meds/');
   window.scrollTo({ top: 0, behavior: 'smooth' });
+  render();
 });
 
 els.markDispensed.addEventListener('click', () => {
@@ -416,6 +431,7 @@ els.markDispensed.addEventListener('click', () => {
 function initSelectionFromUrl() {
   const params = new URLSearchParams(window.location.search);
   const index = Number(params.get('med'));
+  detailMode = params.has('med');
   setSelectedMedication(Number.isFinite(index) ? index : 0, false);
 }
 

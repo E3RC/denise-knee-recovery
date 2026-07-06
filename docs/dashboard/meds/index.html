@@ -34,11 +34,11 @@
             <button id="save-medications" class="ghost" type="button">Save meds</button>
           </div>
         </div>
-        <p class="small">Keep this page simple: pick a medication by name, see whether it has been dispensed, then open that one medication for details and timer updates.</p>
+        <p class="small">Simple list first. Tap a medication for details only when you need them.</p>
         <div id="medication-list" class="stack"></div>
       </section>
 
-      <section class="card wide">
+      <section class="card wide" id="medication-detail-card">
         <div class="section-head">
           <h2 id="detail-title">Medication details</h2>
           <div class="section-actions">
@@ -50,13 +50,13 @@
         <form id="medication-form" class="stack"></form>
       </section>
 
-      <section class="card">
+      <section class="card" id="timer-card">
         <h2>Timer planning</h2>
         <p class="small">Each logged dose becomes the starting point for the next timer.</p>
         <div id="timer-preview" class="stack"></div>
       </section>
 
-      <section class="card">
+      <section class="card" id="pushover-card">
         <h2>Pushover planning</h2>
         <div id="pushover-preview" class="stack"></div>
       </section>
