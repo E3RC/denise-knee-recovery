@@ -1,15 +1,15 @@
 {
-  "lastUpdated": "2026-07-05T10:11:52-04:00",
+  "lastUpdated": "2026-07-06T11:20:15Z",
   "updates": [
     {
       "date": "2026-07-06",
       "dayNumber": 0,
-      "headline": "Surgery day",
-      "publicUpdate": "Denise had surgery today. We will post simple updates here as recovery gets underway.",
+      "headline": "Surgery morning",
+      "publicUpdate": "Denise is getting ready for surgery and will head to the center soon. We will share another simple update later today.",
       "painTrend": "Managed",
-      "mobility": "Resting / short assisted walks",
-      "ptMilestone": "Discharge instructions first",
-      "mood": "TBD",
+      "mobility": "Pre-op",
+      "ptMilestone": "Arrival at the surgery center next",
+      "mood": "Focused",
       "needsVisitors": "Please text Brent before visiting.",
       "showOnWeb": "YES"
     }

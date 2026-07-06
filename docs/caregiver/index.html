@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Caregiver Sign-in</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #eef4f6;
+      --panel: #ffffff;
+      --text: #142033;
+      --muted: #5d6b7f;
+      --line: #d7dee8;
+      --accent: #0f766e;
+      --shadow: 0 24px 50px rgba(15, 23, 42, 0.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top right, rgba(15,118,110,.16), transparent 28%),
+        linear-gradient(180deg, #f5f8fa 0%, var(--bg) 100%);
+      color: var(--text);
+      padding: 18px;
+    }
+    .card {
+      width: min(460px, 100%);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      padding: 24px;
+    }
+    .eyebrow {
+      margin: 0 0 8px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      font-size: .75rem;
+      font-weight: 800;
+      color: var(--accent);
+    }
+    h1 { margin: 0 0 10px; font-size: clamp(2rem, 8vw, 3rem); line-height: 1; }
+    p { margin: 0 0 14px; color: var(--muted); }
+    label {
+      display: grid;
+      gap: 8px;
+      font-weight: 650;
+      margin-top: 12px;
+    }
+    input, button {
+      font: inherit;
+      width: 100%;
+      min-height: 52px;
+      border-radius: 16px;
+    }
+    input {
+      border: 1px solid var(--line);
+      padding: 0 14px;
+    }
+    button {
+      margin-top: 16px;
+      border: 0;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 750;
+    }
+    .note {
+      margin-top: 16px;
+      font-size: .92rem;
+      color: var(--muted);
+    }
+    .error {
+      color: #b42318;
+      min-height: 1.4em;
+      margin-top: 10px;
+      font-weight: 650;
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <p class="eyebrow">Private caregiver access</p>
+    <h1>Caregiver Sign-in</h1>
+    <p>The family page stays public. The recovery dashboard stays behind Brent's caregiver PIN.</p>
+    <form id="login-form">
+      <label for="pin">Caregiver PIN</label>
+      <input id="pin" name="pin" type="password" inputmode="numeric" autocomplete="current-password" required />
+      <button type="submit">Open caregiver dashboard</button>
+      <div id="error" class="error" aria-live="polite"></div>
+    </form>
+    <p class="note">This page does not publish medication details or private notes.</p>
+  </main>
+  <script>
+    const form = document.getElementById('login-form');
+    const errorEl = document.getElementById('error');
+
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      errorEl.textContent = '';
+
+      const pin = document.getElementById('pin').value.trim();
+      if (!pin) {
+        errorEl.textContent = 'Enter the caregiver PIN.';
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/caregiver-session', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ pin })
+        });
+
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          errorEl.textContent = payload.error || 'Sign-in failed.';
+          return;
+        }
+
+        window.location.href = payload.redirectTo || '/dashboard';
+      } catch {
+        errorEl.textContent = 'Sign-in is temporarily unavailable.';
+      }
+    });
+  </script>
+</body>
+</html>

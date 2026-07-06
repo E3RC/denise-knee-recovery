@@ -29,7 +29,7 @@
         </label>
         <div class="hero-card">
           <span class="label">Storage</span>
-          <strong>Local browser</strong>
+          <strong>Local browser + SQLite sync</strong>
         </div>
       </div>
       <div class="hero-actions">
@@ -37,10 +37,20 @@
         <button id="export-csv" class="ghost" type="button">Export CSV</button>
         <label class="ghost file-button" for="import-json">Import JSON</label>
         <input id="import-json" type="file" accept="application/json" hidden />
+        <button id="logout" class="ghost" type="button">Lock dashboard</button>
       </div>
     </section>
 
     <section class="grid">
+      <section class="card wide" id="care-profile-card">
+        <div class="section-head">
+          <h2>Care Profile</h2>
+          <button id="save-patient" class="ghost" type="button">Save profile</button>
+        </div>
+        <p class="small">Keep the confirmed Denise facts and surgery metadata explicit here so the workflow has a stable intake record.</p>
+        <form id="patient-form" class="stack"></form>
+      </section>
+
       <section class="card wide" id="safety-and-contacts">
         <div class="panel-grid">
           <article class="panel">
@@ -117,7 +127,12 @@
       <section class="card wide">
         <div class="section-head">
           <h2>Caregiver Log</h2>
-          <button id="add-log-entry" class="ghost" type="button">Add log entry</button>
+          <div class="section-actions">
+            <button id="quick-medication-log" class="ghost" type="button">Morning medication taken</button>
+            <button id="quick-anxiety-log" class="ghost" type="button">Feeling anxious</button>
+            <button id="quick-fasting-log" class="ghost" type="button">Stop eating at midnight</button>
+            <button id="add-log-entry" class="ghost" type="button">Add log entry</button>
+          </div>
         </div>
         <p class="small">Use this like a simple editable sheet for daily status updates and notes.</p>
         <div id="caregiver-log" class="caregiver-log"></div>
@@ -126,8 +141,12 @@
       <section class="card">
         <div class="section-head">
           <h2>Medication Templates</h2>
-          <button id="save-medications" class="ghost" type="button">Save meds</button>
+          <div class="section-actions">
+            <button id="add-medication" class="ghost" type="button">Add medication</button>
+            <button id="save-medications" class="ghost" type="button">Save meds</button>
+          </div>
         </div>
+        <p class="small">Enter names and instructions exactly as provided on discharge paperwork. Unknown timing should stay explicit instead of guessed.</p>
         <form id="medication-form" class="stack"></form>
       </section>
 

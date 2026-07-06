@@ -1,4 +1,5 @@
 const STORAGE_KEY = 'denise-recovery-phase1';
+const DASHBOARD_STATE_URL = '/api/dashboard-state';
 const SURGERY_DATE = '2026-07-06';
 const CHECKLIST = [
   'Pain',
@@ -19,7 +20,11 @@ const SEED = {
     name: 'Denise',
     caregiver: 'Brent Soper',
     procedure: 'Total knee replacement',
-    surgeryDate: SURGERY_DATE
+    surgeryDate: SURGERY_DATE,
+    walkerDetails: 'Drive Medical 10210-1 walker with front wheels',
+    surgeryLocation: '',
+    weightBearing: '',
+    followUpDate: ''
   },
   equipment: [
     { text: 'Drive Medical 10210-1 walker', ready: true },
@@ -36,7 +41,8 @@ const SEED = {
   medicationTemplates: [
     {
       name: 'Prescription placeholder',
-      dose: 'Use discharge instructions',
+      dose: '',
+      instructions: 'Use discharge instructions exactly as written.',
       scheduled: 'Scheduled',
       dueTime: 'TBD',
       givenTime: '',
@@ -97,23 +103,30 @@ const els = {
   equipment: document.getElementById('equipment'),
   notes: document.getElementById('notes'),
   contactsForm: document.getElementById('contacts-form'),
+  patientForm: document.getElementById('patient-form'),
   medicationForm: document.getElementById('medication-form'),
   milestones: document.getElementById('milestones'),
   nextTask: document.getElementById('next-task'),
   followUpSummary: document.getElementById('follow-up-summary'),
+  savePatient: document.getElementById('save-patient'),
   saveContacts: document.getElementById('save-contacts'),
   saveMedications: document.getElementById('save-medications'),
+  addMedication: document.getElementById('add-medication'),
   addLogEntry: document.getElementById('add-log-entry'),
+  quickMedicationLog: document.getElementById('quick-medication-log'),
+  quickAnxietyLog: document.getElementById('quick-anxiety-log'),
+  quickFastingLog: document.getElementById('quick-fasting-log'),
   addMilestone: document.getElementById('add-milestone'),
   form: document.getElementById('event-form'),
   reset: document.getElementById('reset-demo'),
   exportJson: document.getElementById('export-json'),
   importJson: document.getElementById('import-json'),
+  logout: document.getElementById('logout'),
   copySummary: document.getElementById('copy-summary'),
   printSummary: document.getElementById('print-summary')
 };
 
-let state = loadState();
+let state = structuredClone(DEFAULT_STATE);
 
 function loadState() {
   try {
@@ -123,8 +136,33 @@ function loadState() {
   return structuredClone(DEFAULT_STATE);
 }
 
-function saveState() {
+async function syncRemoteState() {
+  try {
+    const response = await fetch(DASHBOARD_STATE_URL, { cache: 'no-store' });
+    if (!response.ok) return;
+    state = normalizeState(await response.json());
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    render();
+  } catch {}
+}
+
+async function persistRemoteState() {
+  try {
+    await fetch(DASHBOARD_STATE_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(state)
+    });
+  } catch {}
+}
+
+function saveState(syncRemote = true) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  if (syncRemote) {
+    void persistRemoteState();
+  }
 }
 
 function exportState() {
@@ -190,6 +228,7 @@ function normalizeState(next) {
     ? next.medicationTemplates.map(item => ({
         name: String(item?.name || ''),
         dose: String(item?.dose || ''),
+        instructions: String(item?.instructions || ''),
         scheduled: String(item?.scheduled || ''),
         dueTime: String(item?.dueTime || ''),
         givenTime: String(item?.givenTime || ''),
@@ -281,6 +320,7 @@ function render() {
   els.day.textContent = `Day ${recoveryDay()}`;
   els.countdown.textContent = countdownText();
   renderContactsForm();
+  renderPatientForm();
   renderMedicationForm();
   renderMilestones();
   renderCaregiverLog();
@@ -297,6 +337,40 @@ function render() {
       </div>
     </div>`).join('');
   els.notes.innerHTML = state.notes.length ? state.notes.slice().reverse().map(renderEntry).join('') : empty('No notes yet.');
+}
+
+function renderPatientForm() {
+  const patient = state.patient || DEFAULT_STATE.patient;
+  els.patientForm.innerHTML = `
+    <label>
+      <span>Patient</span>
+      <input data-patient-field="name" value="${escapeHtml(patient.name || '')}" placeholder="Patient name" />
+    </label>
+    <label>
+      <span>Caregiver</span>
+      <input data-patient-field="caregiver" value="${escapeHtml(patient.caregiver || '')}" placeholder="Primary caregiver" />
+    </label>
+    <label>
+      <span>Procedure</span>
+      <input data-patient-field="procedure" value="${escapeHtml(patient.procedure || '')}" placeholder="Procedure" />
+    </label>
+    <label>
+      <span>Walker / mobility setup</span>
+      <input data-patient-field="walkerDetails" value="${escapeHtml(patient.walkerDetails || '')}" placeholder="Walker and mobility details" />
+    </label>
+    <label>
+      <span>Surgery location</span>
+      <input data-patient-field="surgeryLocation" value="${escapeHtml(patient.surgeryLocation || '')}" placeholder="Hospital or surgery center" />
+    </label>
+    <label>
+      <span>Weight-bearing guidance</span>
+      <input data-patient-field="weightBearing" value="${escapeHtml(patient.weightBearing || '')}" placeholder="Enter exact instruction" />
+    </label>
+    <label>
+      <span>Follow-up date</span>
+      <input type="date" data-patient-field="followUpDate" value="${escapeHtml(patient.followUpDate || '')}" />
+    </label>
+  `;
 }
 
 function renderChecklist(item, index) {
@@ -343,8 +417,10 @@ function renderMedicationForm() {
     <label>
       <span>Medication name</span>
       <input data-med-index="${index}" data-med-field="name" value="${escapeHtml(item.name)}" placeholder="Medication name" />
-      <span>Dose / instructions</span>
-      <textarea data-med-index="${index}" data-med-field="dose" rows="3" placeholder="Use discharge instructions">${escapeHtml(item.dose)}</textarea>
+      <span>Dose</span>
+      <input data-med-index="${index}" data-med-field="dose" value="${escapeHtml(item.dose)}" placeholder="Enter exact dose" />
+      <span>Instructions</span>
+      <textarea data-med-index="${index}" data-med-field="instructions" rows="3" placeholder="Enter exact instructions">${escapeHtml(item.instructions || '')}</textarea>
       <span class="small">Store instructions exactly as Brent enters them. No dosing advice is generated here.</span>
       <span>Scheduled or PRN</span>
       <input data-med-index="${index}" data-med-field="scheduled" value="${escapeHtml(item.scheduled)}" placeholder="Scheduled or PRN" />
@@ -356,6 +432,7 @@ function renderMedicationForm() {
       <input data-med-index="${index}" data-med-field="givenBy" value="${escapeHtml(item.givenBy)}" />
       <span>Notes</span>
       <textarea data-med-index="${index}" data-med-field="notes" rows="3">${escapeHtml(item.notes)}</textarea>
+      <button type="button" class="ghost" data-med-remove="${index}">Remove medication</button>
     </label>
   `).join('');
 }
@@ -428,6 +505,7 @@ function buildFollowUpSummary() {
   const completed = state.checklist.filter(item => item.done).length;
   const total = state.checklist.length;
   const surgery = state.surgeryDate || SURGERY_DATE;
+  const patient = state.patient || DEFAULT_STATE.patient;
   const pending = state.checklist.filter(item => !item.done).slice(0, 4).map(item => `- ${item.id}`).join('\n');
   const recent = state.activityLog.slice(-5).map(item => `- ${item.type || 'Entry'}: ${item.text}`).join('\n');
   const recentLog = state.dailyLog.slice(-3).map(item => {
@@ -437,7 +515,13 @@ function buildFollowUpSummary() {
     return `- ${when}: ${status} - ${details}`;
   }).join('\n');
   return [
+    `Patient: ${patient.name || 'Unknown'}`,
+    `Caregiver: ${patient.caregiver || 'Unknown'}`,
+    `Procedure: ${patient.procedure || 'Unknown'}`,
+    `Walker setup: ${patient.walkerDetails || 'Not entered yet'}`,
     `Surgery date: ${surgery}`,
+    `Weight-bearing: ${patient.weightBearing || 'Not entered yet'}`,
+    `Follow-up date: ${patient.followUpDate || 'Not entered yet'}`,
     `Recovery day: Day ${recoveryDay()}`,
     `Checklist: ${completed}/${total} complete`,
     `Next task: ${state.checklist.find(item => !item.done)?.id || 'All checklist items complete'}`,
@@ -537,6 +621,16 @@ els.contactsForm.addEventListener('input', event => {
   item[target.dataset.contactField] = target.value;
 });
 
+els.patientForm.addEventListener('input', event => {
+  const target = event.target.closest('[data-patient-field]');
+  if (!target) return;
+  const field = target.dataset.patientField;
+  state.patient[field] = target.value;
+  if (field === 'followUpDate' && !target.value) {
+    state.patient[field] = '';
+  }
+});
+
 els.medicationForm.addEventListener('input', event => {
   const target = event.target.closest('[data-med-index][data-med-field]');
   if (!target) return;
@@ -567,12 +661,27 @@ els.caregiverLog.addEventListener('input', event => {
 });
 
 els.contactsForm.addEventListener('blur', persistAndRender, true);
+els.patientForm.addEventListener('blur', persistAndRender, true);
 els.medicationForm.addEventListener('blur', persistAndRender, true);
 els.milestones.addEventListener('blur', persistAndRender, true);
 els.caregiverLog.addEventListener('blur', persistAndRender, true);
 
+els.savePatient.addEventListener('click', persistAndRender);
 els.saveContacts.addEventListener('click', persistAndRender);
 els.saveMedications.addEventListener('click', persistAndRender);
+els.addMedication.addEventListener('click', () => {
+  state.medicationTemplates.push({
+    name: '',
+    dose: '',
+    instructions: '',
+    scheduled: '',
+    dueTime: '',
+    givenTime: '',
+    givenBy: '',
+    notes: ''
+  });
+  persistAndRender();
+});
 els.addLogEntry.addEventListener('click', () => {
   state.dailyLog.unshift({
     when: new Date().toISOString(),
@@ -582,12 +691,54 @@ els.addLogEntry.addEventListener('click', () => {
   persistAndRender();
 });
 
+function addQuickCaregiverLog(status, details) {
+  state.dailyLog.unshift({
+    when: new Date().toISOString(),
+    status,
+    details
+  });
+  persistAndRender();
+}
+
+els.quickMedicationLog.addEventListener('click', () => {
+  addQuickCaregiverLog('Medication', 'Denise took the one medication she was supposed to take that morning.');
+});
+
+els.quickAnxietyLog.addEventListener('click', () => {
+  addQuickCaregiverLog('Mood', 'Denise was feeling anxious.');
+});
+
+els.quickFastingLog.addEventListener('click', () => {
+  addQuickCaregiverLog('Pre-op / fasting', 'Denise knew she had to stop eating by midnight.');
+});
+
 els.caregiverLog.addEventListener('click', event => {
   const button = event.target.closest('[data-log-remove]');
   if (!button) return;
   const index = Number(button.dataset.logRemove);
   if (!Number.isFinite(index)) return;
   state.dailyLog.splice(index, 1);
+  persistAndRender();
+});
+
+els.medicationForm.addEventListener('click', event => {
+  const button = event.target.closest('[data-med-remove]');
+  if (!button) return;
+  const index = Number(button.dataset.medRemove);
+  if (!Number.isFinite(index)) return;
+  state.medicationTemplates.splice(index, 1);
+  if (!state.medicationTemplates.length) {
+    state.medicationTemplates.push({
+      name: '',
+      dose: '',
+      instructions: '',
+      scheduled: '',
+      dueTime: '',
+      givenTime: '',
+      givenBy: '',
+      notes: ''
+    });
+  }
   persistAndRender();
 });
 
@@ -663,6 +814,13 @@ els.printSummary.addEventListener('click', () => {
   window.print();
 });
 
+els.logout.addEventListener('click', async () => {
+  try {
+    await fetch('/api/caregiver-logout', { method: 'POST' });
+  } catch {}
+  window.location.href = '/caregiver';
+});
+
 els.importJson.addEventListener('change', async () => {
   const file = els.importJson.files && els.importJson.files[0];
   if (!file) return;
@@ -682,4 +840,6 @@ if ('serviceWorker' in navigator) {
   });
 }
 
+state = loadState();
 render();
+void syncRemoteState();
