@@ -551,7 +551,7 @@ function render() {
   if (phaseChanged) {
     saveState(false);
   }
-  els.surgeryDate.value = state.surgeryDate || SURGERY_DATE;
+  if (els.surgeryDate) els.surgeryDate.value = state.surgeryDate || SURGERY_DATE;
   els.day.textContent = `Day ${recoveryDay()}`;
   els.countdown.textContent = countdownText();
   renderPainBadge();
