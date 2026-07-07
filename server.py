@@ -325,6 +325,9 @@ def apply_command_actions(state: dict, actions: list[dict]) -> dict:
             })
 
     return state
+
+
+class Handler(BaseHTTPRequestHandler):
     server_version = "DeniseRecovery/1.0"
 
     def do_GET(self) -> None:  # noqa: N802
