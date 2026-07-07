@@ -368,6 +368,21 @@ button,
   line-height: 1.45;
 }
 
+.med-countdown {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-radius: 14px;
+  color: var(--accent-strong);
+  background: rgba(20, 184, 166, 0.12);
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.med-countdown.is-overdue {
+  color: var(--warn-text);
+  background: var(--warn-soft);
+}
+
 .item {
   padding: 13px 14px;
   background: linear-gradient(180deg, #ffffff 0%, #f7fbfb 100%);

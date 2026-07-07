@@ -44,6 +44,7 @@ let state = {
 let fullState = {};
 let selectedMedicationIndex = 0;
 let detailMode = false;
+let countdownTimer = null;
 
 function escapeHtml(value) {
   return String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
@@ -280,8 +281,10 @@ function renderMedicationList() {
         <button type="button" class="${item.dispensed ? 'primary' : 'ghost'}" data-toggle-dispensed="${index}">${item.dispensed ? 'Dispensed' : 'Not dispensed'}</button>
       </div>
       <p class="small">Next dose at ${escapeHtml(formatTimeOnly(item.nextDueAt) || 'not set')}</p>
+      <p class="med-countdown" data-med-countdown="${index}">${escapeHtml(formatCountdown(item.nextDueAt))}</p>
     </div>
   `).join('');
+  updateCountdowns();
 }
 
 function formatTimeOnly(value) {
@@ -291,6 +294,52 @@ function formatTimeOnly(value) {
     minute: '2-digit',
     timeZone: DISPLAY_TIMEZONE
   }).format(dt);
+}
+
+function formatCountdown(value) {
+  const due = new Date(value);
+  if (Number.isNaN(due.getTime())) return 'Timer not started';
+
+  const diffMs = due.getTime() - Date.now();
+  const absMs = Math.abs(diffMs);
+  const totalMinutes = Math.floor(absMs / 60000);
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+  const seconds = Math.floor((absMs % 60000) / 1000);
+
+  if (diffMs <= 0) {
+    if (totalMinutes < 1) return 'Due now';
+    return `Overdue by ${formatDuration(days, hours, minutes, seconds)}`;
+  }
+
+  return `Due in ${formatDuration(days, hours, minutes, seconds)}`;
+}
+
+function formatDuration(days, hours, minutes, seconds) {
+  if (days > 0) return `${days}d ${hours}h ${minutes}m`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  if (minutes > 0) return `${minutes}m ${seconds}s`;
+  return `${seconds}s`;
+}
+
+function updateCountdowns() {
+  document.querySelectorAll('[data-med-countdown]').forEach(node => {
+    const index = Number(node.dataset.medCountdown);
+    const item = state.medicationTemplates[index];
+    node.textContent = formatCountdown(item?.nextDueAt);
+    node.classList.toggle('is-overdue', isOverdue(item?.nextDueAt));
+  });
+}
+
+function isOverdue(value) {
+  const due = new Date(value);
+  return !Number.isNaN(due.getTime()) && due.getTime() <= Date.now();
+}
+
+function startCountdownTimer() {
+  if (countdownTimer) return;
+  countdownTimer = window.setInterval(updateCountdowns, 1000);
 }
 
 function renderMedicationForm() {
@@ -508,4 +557,5 @@ function initSelectionFromUrl() {
 loadState();
 initSelectionFromUrl();
 render();
+startCountdownTimer();
 void syncRemoteState();
