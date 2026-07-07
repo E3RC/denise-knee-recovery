@@ -41,6 +41,7 @@ const DEFAULT_MED = {
 let state = {
   medicationTemplates: [structuredClone(DEFAULT_MED)]
 };
+let fullState = {};
 let selectedMedicationIndex = 0;
 let detailMode = false;
 
@@ -147,6 +148,7 @@ function loadState() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
     const parsed = JSON.parse(raw);
+    fullState = parsed && typeof parsed === 'object' ? parsed : {};
     if (Array.isArray(parsed?.medicationTemplates) && parsed.medicationTemplates.length) {
       state.medicationTemplates = parsed.medicationTemplates.map(item => ({
         ...structuredClone(DEFAULT_MED),
@@ -164,6 +166,7 @@ async function syncRemoteState() {
     const response = await fetch(DASHBOARD_STATE_URL, { cache: 'no-store' });
     if (!response.ok) return;
     const parsed = await response.json();
+    fullState = parsed && typeof parsed === 'object' ? parsed : {};
     if (Array.isArray(parsed?.medicationTemplates) && parsed.medicationTemplates.length) {
       state.medicationTemplates = parsed.medicationTemplates.map(item => ({
         ...structuredClone(DEFAULT_MED),
@@ -183,15 +186,21 @@ function persistLocalOnly() {
     const raw = localStorage.getItem(STORAGE_KEY);
     const parsed = raw ? JSON.parse(raw) : {};
     parsed.medicationTemplates = state.medicationTemplates;
+    fullState = {
+      ...fullState,
+      medicationTemplates: state.medicationTemplates
+    };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
   } catch {}
 }
 
 async function persistRemoteState() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    const parsed = raw ? JSON.parse(raw) : {};
-    parsed.medicationTemplates = state.medicationTemplates;
+    const parsed = {
+      ...fullState,
+      medicationTemplates: state.medicationTemplates
+    };
+    fullState = parsed;
     await fetch(DASHBOARD_STATE_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -207,6 +216,44 @@ function saveState() {
 
 function medicationUrl(index) {
   return `/dashboard/meds/?med=${index}`;
+}
+
+function newLogEntry(status, details) {
+  return {
+    when: new Date().toISOString(),
+    status,
+    details
+  };
+}
+
+function newActivityEntry(type, text) {
+  return {
+    type,
+    text,
+    at: new Date().toISOString()
+  };
+}
+
+function logMedicationDose(index) {
+  const item = state.medicationTemplates[index];
+  if (!item) return;
+  item.lastGivenAt = new Date().toISOString();
+  item.givenTime = item.lastGivenAt;
+  item.dispensed = true;
+  syncMedicationTiming(item);
+
+  const medName = item.name || `Medication ${index + 1}`;
+  const nextText = formatDateTime(item.nextDueAt) || 'next dose not calculated';
+  const doseText = item.dose ? ` (${item.dose})` : '';
+  const details = `${medName}${doseText} taken. Timer restarted. Next due: ${nextText}.`;
+
+  const dailyLog = Array.isArray(fullState.dailyLog) ? fullState.dailyLog : [];
+  const activityLog = Array.isArray(fullState.activityLog) ? fullState.activityLog : [];
+  fullState.dailyLog = [newLogEntry('Medication', details), ...dailyLog];
+  fullState.activityLog = [...activityLog, newActivityEntry('Medication', details)];
+
+  saveState();
+  render();
 }
 
 function setSelectedMedication(index, pushHistory = true) {
@@ -227,6 +274,9 @@ function renderMedicationList() {
     <div class="item">
       <div class="item-head">
         <button type="button" class="ghost" data-open-med="${index}">${escapeHtml(item.name || `Medication ${index + 1}`)}</button>
+        <button type="button" class="primary" data-med-taken="${index}">Taken</button>
+      </div>
+      <div class="section-actions">
         <button type="button" class="${item.dispensed ? 'primary' : 'ghost'}" data-toggle-dispensed="${index}">${item.dispensed ? 'Dispensed' : 'Not dispensed'}</button>
       </div>
       <p class="small">Next dose at ${escapeHtml(formatTimeOnly(item.nextDueAt) || 'not set')}</p>
@@ -378,12 +428,7 @@ els.medicationForm.addEventListener('click', event => {
   const logButton = event.target.closest('[data-med-log-now]');
   if (logButton) {
     const index = Number(logButton.dataset.medLogNow);
-    const item = state.medicationTemplates[index];
-    if (!item) return;
-    item.lastGivenAt = new Date().toISOString();
-    syncMedicationTiming(item);
-    saveState();
-    render();
+    logMedicationDose(index);
     return;
   }
 
@@ -401,6 +446,12 @@ els.medicationForm.addEventListener('click', event => {
 });
 
 els.medicationList.addEventListener('click', event => {
+  const takenButton = event.target.closest('[data-med-taken]');
+  if (takenButton) {
+    logMedicationDose(Number(takenButton.dataset.medTaken));
+    return;
+  }
+
   const openButton = event.target.closest('[data-open-med]');
   if (openButton) {
     setSelectedMedication(Number(openButton.dataset.openMed));

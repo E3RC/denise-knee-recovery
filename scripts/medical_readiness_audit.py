@@ -137,6 +137,14 @@ def main() -> int:
     if missing_prn:
         return fail(f"missing required PRN reminders: {missing_prn}")
 
+    missing_med_urls = sorted(
+        i for i in (REQUIRED_MED_IDS | REQUIRED_PRN_IDS)
+        if reminder_by_id.get(i, {}).get("url") != "/dashboard/meds/"
+        or reminder_by_id.get(i, {}).get("urlTitle") != "Open meds page"
+    )
+    if missing_med_urls:
+        return fail(f"medication reminders missing meds-page Pushover URL: {missing_med_urls}")
+
     missing_overnight = sorted(i for i in REQUIRED_OVERNIGHT_IDS if i not in reminder_by_id)
     if missing_overnight:
         return fail(f"missing required overnight reminders: {missing_overnight}")

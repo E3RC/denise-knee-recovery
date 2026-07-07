@@ -2,8 +2,10 @@
   "privacy": "Template only. Put real Pushover tokens in .env or host secrets, never in this file.",
   "secretsNeeded": [
     "PUSHOVER_USER_KEY",
-    "PUSHOVER_APP_TOKEN"
+    "PUSHOVER_APP_TOKEN",
+    "PUBLIC_BASE_URL"
   ],
+  "publicBaseUrl": "https://your-private-host.example",
   "timezone": "America/Indiana/Indianapolis",
   "windowMinutes": 10,
   "reminders": [
@@ -13,7 +15,9 @@
       "type": "daily",
       "time": "08:00",
       "message": "Check the medication instructions, log what was given, and note how Denise is feeling.",
-      "category": "medication"
+      "category": "medication",
+      "url": "/dashboard/meds/",
+      "urlTitle": "Open meds page"
     },
     {
       "id": "breakfast",
@@ -53,7 +57,9 @@
       "type": "daily",
       "time": "14:00",
       "message": "Review the medication schedule and log any exact instructions followed.",
-      "category": "medication"
+      "category": "medication",
+      "url": "/dashboard/meds/",
+      "urlTitle": "Open meds page"
     },
     {
       "id": "afternoon-walk",

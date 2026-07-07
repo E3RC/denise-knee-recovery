@@ -36,6 +36,7 @@ def main() -> int:
         return 2
 
     timezone_name = str(config.get("timezone") or os.environ.get("REMINDER_TIMEZONE") or "America/Indiana/Indianapolis")
+    public_base_url = str(config.get("publicBaseUrl") or os.environ.get("PUBLIC_BASE_URL") or "").strip()
     tz = ZoneInfo(timezone_name)
     window_minutes = int(os.environ.get("REMINDER_WINDOW_MINUTES") or config.get("windowMinutes") or DEFAULT_WINDOW_MINUTES)
     now = datetime.now(tz)
@@ -87,6 +88,8 @@ def main() -> int:
                 title=str(reminder.get("title") or reminder.get("name") or "Denise Recovery Reminder"),
                 message=str(reminder.get("message") or ""),
                 priority=int(reminder.get("priority", 0)),
+                url=resolve_url(reminder.get("url"), public_base_url),
+                url_title=str(reminder.get("urlTitle") or "Open caregiver page"),
             )
             state[state_key] = now.isoformat(timespec="seconds")
             sent += 1
@@ -207,16 +210,38 @@ def format_due(reminder: dict[str, object], due_at: datetime) -> str:
     return f"{due_at.isoformat(timespec='minutes')} | {name} | {reminder.get('id', '')}"
 
 
-def send_pushover(*, app_token: str, user_key: str, title: str, message: str, priority: int) -> None:
-    payload = urllib.parse.urlencode(
-        {
-            "token": app_token,
-            "user": user_key,
-            "title": title,
-            "message": message,
-            "priority": str(priority),
-        }
-    ).encode("utf-8")
+def resolve_url(value: object, public_base_url: str) -> str:
+    url = str(value or "").strip()
+    if not url:
+        return ""
+    if url.startswith(("http://", "https://")):
+        return url
+    if not public_base_url:
+        return ""
+    return urllib.parse.urljoin(public_base_url.rstrip("/") + "/", url.lstrip("/"))
+
+
+def send_pushover(
+    *,
+    app_token: str,
+    user_key: str,
+    title: str,
+    message: str,
+    priority: int,
+    url: str = "",
+    url_title: str = "",
+) -> None:
+    fields = {
+        "token": app_token,
+        "user": user_key,
+        "title": title,
+        "message": message,
+        "priority": str(priority),
+    }
+    if url:
+        fields["url"] = url
+        fields["url_title"] = url_title or "Open caregiver page"
+    payload = urllib.parse.urlencode(fields).encode("utf-8")
     request = urllib.request.Request(PUSHOVER_URL, data=payload, method="POST")
     with urllib.request.urlopen(request, timeout=15) as response:
         if response.status >= 300:

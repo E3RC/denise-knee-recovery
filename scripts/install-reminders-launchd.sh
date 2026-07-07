@@ -21,7 +21,7 @@ if [[ ! -f "${REPO_DIR}/.env" ]]; then
 fi
 
 mkdir -p "${SECRET_DIR}"
-grep -E '^(PUSHOVER_USER_KEY|PUSHOVER_APP_TOKEN)=' "${REPO_DIR}/.env" > "${SECRET_FILE}"
+grep -E '^(PUSHOVER_USER_KEY|PUSHOVER_APP_TOKEN|PUBLIC_BASE_URL)=' "${REPO_DIR}/.env" > "${SECRET_FILE}"
 chmod 600 "${SECRET_FILE}"
 
 mkdir -p "${RUNNER_DIR}"
