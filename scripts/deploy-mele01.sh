@@ -41,7 +41,11 @@ if [[ -z "${INFISICAL_PROJECT_ID:-}" ]]; then
     exit 1
   fi
 
-  ENV_MODE="$(stat -f '%Lp' .env)"
+  if stat -f '%Lp' .env >/dev/null 2>&1; then
+    ENV_MODE="$(stat -f '%Lp' .env)"
+  else
+    ENV_MODE="$(stat -c '%a' .env)"
+  fi
   if [[ "${ENV_MODE}" != "600" ]]; then
     echo "Warning: .env permissions are ${ENV_MODE}. Recommended: chmod 600 .env"
   fi
