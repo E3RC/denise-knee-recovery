@@ -173,6 +173,9 @@
   <script>
     const form = document.getElementById('login-form');
     const errorEl = document.getElementById('error');
+    const allowedNextPaths = new Set(['/dashboard', '/dashboard/', '/dashboard/meds/']);
+    const requestedNext = new URLSearchParams(window.location.search).get('next') || '/dashboard';
+    const nextPath = allowedNextPaths.has(requestedNext) ? requestedNext : '/dashboard';
 
     form.addEventListener('submit', async event => {
       event.preventDefault();
@@ -199,7 +202,7 @@
           return;
         }
 
-        window.location.href = payload.redirectTo || '/dashboard';
+        window.location.href = nextPath || payload.redirectTo || '/dashboard';
       } catch {
         errorEl.textContent = 'Sign-in is temporarily unavailable.';
       }

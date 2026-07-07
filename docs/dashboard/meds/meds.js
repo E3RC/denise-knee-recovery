@@ -1,6 +1,7 @@
 const STORAGE_KEY = 'denise-recovery-phase1';
 const DASHBOARD_STATE_URL = '/api/dashboard-state';
 const DISPLAY_TIMEZONE = 'America/Indiana/Indianapolis';
+const LOGIN_URL = '/caregiver?next=/dashboard/meds/';
 
 const els = {
   medicationListCard: document.getElementById('medication-list-card'),
@@ -45,6 +46,7 @@ let fullState = {};
 let selectedMedicationIndex = 0;
 let detailMode = false;
 let countdownTimer = null;
+let remoteStateLoaded = false;
 
 function escapeHtml(value) {
   return String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
@@ -165,6 +167,10 @@ function loadState() {
 async function syncRemoteState() {
   try {
     const response = await fetch(DASHBOARD_STATE_URL, { cache: 'no-store' });
+    if (response.status === 401) {
+      showAuthRequired();
+      return;
+    }
     if (!response.ok) return;
     const parsed = await response.json();
     fullState = parsed && typeof parsed === 'object' ? parsed : {};
@@ -176,10 +182,32 @@ async function syncRemoteState() {
         syncMedicationTiming(item);
         return item;
       });
+      remoteStateLoaded = true;
       persistLocalOnly();
       render();
     }
   } catch {}
+}
+
+function showAuthRequired() {
+  remoteStateLoaded = false;
+  els.medicationListCard.hidden = false;
+  els.detailCard.hidden = true;
+  els.timerCard.hidden = true;
+  els.pushoverCard.hidden = true;
+  els.medicationList.innerHTML = `
+    <div class="item">
+      <div class="item-head">
+        <strong>Caregiver sign-in required</strong>
+        <span class="tag">Private</span>
+      </div>
+      <p class="small">The medication list is private. Sign in to load the real medication plan and timers.</p>
+      <a class="nav-button primary" href="${LOGIN_URL}">Sign in</a>
+    </div>
+  `;
+  if (els.reminderSafety) {
+    els.reminderSafety.innerHTML = '<div class="item muted">Medication timers are hidden until caregiver sign-in succeeds.</div>';
+  }
 }
 
 function persistLocalOnly() {
@@ -271,6 +299,18 @@ function getSelectedMedication() {
 
 function renderMedicationList() {
   els.medicationListCard.hidden = detailMode;
+  if (!remoteStateLoaded) {
+    els.medicationList.innerHTML = `
+      <div class="item">
+        <div class="item-head">
+          <strong>Loading private medication plan</strong>
+          <span class="tag">Secure</span>
+        </div>
+        <p class="small">If this stays here, use the caregiver sign-in page and reopen the meds link.</p>
+      </div>
+    `;
+    return;
+  }
   els.medicationList.innerHTML = state.medicationTemplates.map((item, index) => `
     <div class="item">
       <div class="item-head">
