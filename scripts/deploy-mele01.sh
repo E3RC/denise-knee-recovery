@@ -5,7 +5,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "${REPO_DIR}"
 
-PORT="${PORT:-8080}"
+if [[ -f .env ]]; then
+  set -a
+  . ./.env
+  set +a
+fi
+
+PORT="${HOST_PORT:-${PORT:-8080}}"
 DB_PATH="${DB_PATH:-data/recovery.sqlite}"
 BACKUP_DIR="data/backups"
 INFISICAL_RUNNER="${REPO_DIR}/scripts/run-with-infisical.sh"
