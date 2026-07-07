@@ -1,27 +1,15 @@
 {
-  "lastUpdated": "2026-07-07T07:37:22-04:00",
+  "lastUpdated": "2026-07-07T11:18:25-04:00",
   "updates": [
-    {
-      "date": "2026-07-07",
-      "dayNumber": 1,
-      "headline": "Post-op day 1",
-      "publicUpdate": "Denise is home, resting, and working through the first recovery day. The focus today is short walks, fluids, breathing exercises, and staying ahead of swelling.",
-      "painTrend": "Managed",
-      "mobility": "Resting with short assisted walks",
-      "ptMilestone": "Post-op day 1",
-      "mood": "Tired but steady",
-      "needsVisitors": "Please text Brent before visiting.",
-      "showOnWeb": "YES"
-    },
     {
       "date": "2026-07-06",
       "dayNumber": 0,
-      "headline": "Positive update from the surgeon",
-      "publicUpdate": "The surgery went well. We received a positive update from the surgeon, her vitals are stable, and everything is aligned well. She came home after meeting recovery goals like walking and eating, and the nurse reviewed the discharge instructions.",
-      "painTrend": "Stable",
-      "mobility": "Recovery milestones underway",
-      "ptMilestone": "Surgery complete",
-      "mood": "Encouraged",
+      "headline": "Surgery day",
+      "publicUpdate": "Denise had surgery today. We will post simple updates here as recovery gets underway.",
+      "painTrend": "Managed",
+      "mobility": "Resting / short assisted walks",
+      "ptMilestone": "Discharge instructions first",
+      "mood": "TBD",
       "needsVisitors": "Please text Brent before visiting.",
       "showOnWeb": "YES"
     }
