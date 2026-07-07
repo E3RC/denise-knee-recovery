@@ -5,14 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Knee'd to Know | Meds</title>
   <meta name="theme-color" content="#0f766e" />
-  <link rel="manifest" href="../manifest.webmanifest" />
-  <link rel="stylesheet" href="../dashboard.css" />
+  <link rel="icon" href="/dashboard/icon.svg" />
+  <link rel="manifest" href="/dashboard/manifest.webmanifest" />
+  <link rel="stylesheet" href="/dashboard/dashboard.css" />
 </head>
 <body>
   <main class="shell">
     <section class="hero">
       <div class="brand-row">
-        <img src="../icon.svg" alt="Knee'd to Know logo" class="brand-logo" />
+        <img src="/dashboard/icon.svg" alt="Knee'd to Know logo" class="brand-logo" />
         <div>
           <p class="eyebrow">Medication workspace</p>
           <h1>Knee'd to Know</h1>
@@ -26,7 +27,7 @@
     </section>
 
     <section class="grid">
-      <section class="card wide">
+      <section class="card wide" id="medication-list-card">
         <div class="section-head">
           <h2>Medication plan</h2>
           <div class="section-actions">
@@ -60,8 +61,13 @@
         <h2>Pushover planning</h2>
         <div id="pushover-preview" class="stack"></div>
       </section>
+
+      <section class="card">
+        <h2>Reminder safety</h2>
+        <div id="reminder-safety" class="stack"></div>
+      </section>
     </section>
   </main>
-  <script src="meds.js"></script>
+  <script src="/dashboard/meds/meds.js"></script>
 </body>
 </html>

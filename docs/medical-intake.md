@@ -1,0 +1,50 @@
+# Medical Intake
+
+Source of truth for the Denise recovery workflow:
+
+- Google Sheet: `Denise Knee Recovery Tracker`
+- Private dashboard state
+- Discharge paperwork and nurse notes
+- Doctor notes and photo evidence shared by Brent
+- `Dr Knees` review pass
+- backup nurse review pass
+
+## Confirmed recovery facts
+
+- Surgery date: 2026-07-06
+- Procedure: total knee replacement
+- Caregiver: Brent Soper
+- Home equipment includes a walker, shower seat, bidet seats, and Pulsar Flow cold therapy
+- Sleep window for reminders: 10:00 PM to 6:00 AM
+- Incentive spirometer should be used several times while awake
+- Scheduled log-health checks should run every 15 minutes and trigger a restart/alert if the reminder logs show a real failure.
+
+## Medication rules captured from discharge notes
+
+- Pain meds can start tonight or are PRN as instructed by the surgeon/pharmacy.
+- Non-pain meds start tomorrow morning.
+- No dose calculations should be invented by the app.
+- Reminders should reflect the actual bottle-label directions and logged times.
+
+## Current med schedule intent
+
+- Tylenol: scheduled
+- Meloxicam: scheduled
+- Aspirin: scheduled
+- Lyrica: bedtime
+- Stomach protection medicine: scheduled
+- Dexamethasone: scheduled
+- Cephalexin: scheduled
+- Journavx: loading dose tomorrow morning, then 12-hour follow-up timing
+- Oxycodone: PRN, timer starts from the logged dose
+- Tramadol: PRN
+- Ondansetron: PRN
+- Senokot: PRN / constipation support
+
+## Open items still needing exact transcription
+
+- Exact med start times if the bottle labels specify more precise timing
+- Physical therapy appointment details
+- Weight-bearing instructions
+- Any surgeon-specific restrictions not already captured in the notes
+- Live reminder runner on this Mac uses the support-folder copy at `~/Library/Application Support/DeniseRecovery/reminder-runner/` with `REMINDER_CONFIG_PATH=reminders.json`.

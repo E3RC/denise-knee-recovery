@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.denise.recovery.log-check</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/bsoper/.local/bin/denise-log-check</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/Users/bsoper/Library/Application Support/DeniseRecovery/reminder-runner</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>LOG_HEALTH_STDOUT_PATH</key>
+    <string>/Users/bsoper/Library/Application Support/DeniseRecovery/reminder-runner/reminders-launchd.log</string>
+    <key>LOG_HEALTH_STDERR_PATH</key>
+    <string>/Users/bsoper/Library/Application Support/DeniseRecovery/reminder-runner/reminders-launchd.err</string>
+    <key>LOG_HEALTH_SUMMARY_PATH</key>
+    <string>/Users/bsoper/Library/Application Support/DeniseRecovery/reminder-runner/log-health-summary.txt</string>
+    <key>LOG_HEALTH_STATE_PATH</key>
+    <string>/Users/bsoper/Library/Application Support/DeniseRecovery/reminder-runner/log-health-state.json</string>
+    <key>LOG_HEALTH_AGENT_LABEL</key>
+    <string>com.denise.recovery.reminders</string>
+    <key>LOG_HEALTH_NOTIFY</key>
+    <string>false</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>StartInterval</key>
+  <integer>86400</integer>
+  <key>StandardOutPath</key>
+  <string>/Users/bsoper/Library/Application Support/DeniseRecovery/reminder-runner/log-check-launchd.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/bsoper/Library/Application Support/DeniseRecovery/reminder-runner/log-check-launchd.err</string>
+</dict>
+</plist>

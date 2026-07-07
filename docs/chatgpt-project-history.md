@@ -34,6 +34,7 @@ Build a caregiver dashboard for Denise's outpatient total knee replacement.
 ChatGPT acts as product owner / architect.
 Codex performs implementation.
 ChatGPT reviews completed work and writes the next implementation specification.
+The repository now also carries role notes for a project-manager agent and a backup-nurse agent in `docs/agents/` so scheduling and med alerts stay aligned.
 
 ## Important Note
 Avoid regenerating existing files. Always inspect the current codebase before implementing the next feature. Build incrementally on the existing implementation.
@@ -46,3 +47,5 @@ Implement a Recovery Engine that drives the UI state (Pre-op, Surgery Day, Home 
 - The launchd copy uses support-folder secrets and a support-folder runner copy under `~/Library/Application Support/DeniseRecovery/reminder-runner/`.
 - Reminder delivery is intentionally frequent and forgiving so scheduled items are less likely to be missed if the machine wakes late.
 - Keep all PII and secrets out of public pages and Git history.
+- Photo baselines are tracked in the private caregiver dashboard as metadata only; keep the raw image files in a private folder or photo library outside Git.
+- Current open Denise issues to keep aligned: #1 dashboard v0.1 foundation, #2 coordination protocol, #4 caregiver editing, #6 stale dashboard cache, #8 self-hosted deployment, and #9 care-data handoff.

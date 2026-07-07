@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Knee'd to Know logo">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f766e"/>
+      <stop offset="100%" stop-color="#14b8a6"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="56" fill="url(#bg)"/>
+  <circle cx="128" cy="128" r="78" fill="#f5fbfb" opacity="0.96"/>
+  <path d="M104 88c-8 12-12 26-12 40 0 27 16 47 40 58" fill="none" stroke="#0f766e" stroke-width="14" stroke-linecap="round"/>
+  <path d="M152 88c8 9 12 21 12 34 0 18-8 32-22 46" fill="none" stroke="#0f766e" stroke-width="14" stroke-linecap="round"/>
+  <path d="M114 136c10-6 22-8 34-7" fill="none" stroke="#14b8a6" stroke-width="12" stroke-linecap="round"/>
+  <rect x="91" y="152" width="74" height="22" rx="11" fill="#ecfeff"/>
+  <path d="M104 163h48" fill="none" stroke="#0f766e" stroke-width="8" stroke-linecap="round"/>
+  <path d="M178 70l7 12 14 2-10 10 2 14-13-7-12 7 2-14-10-10 14-2z" fill="#fef3c7"/>
+  <text x="128" y="214" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#f5fbfb">KTK</text>
+</svg>

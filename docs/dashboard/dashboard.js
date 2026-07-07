@@ -104,6 +104,19 @@ const RECOVERY_FRAMEWORK = {
   ]
 };
 
+const WORKFLOW_ROLES = [
+  {
+    name: 'Project manager',
+    description: 'Keeps the recovery phase, priority order, and documentation aligned.',
+    focus: ['Next implementation step', 'Public/private separation', 'Current recovery phase']
+  },
+  {
+    name: 'Backup nurse',
+    description: 'Checks medication timing, reminder coverage, and overdue alerts.',
+    focus: ['Next dose timers', 'Spirometer reminders', 'Vitals and safety gaps']
+  }
+];
+
 const QUICK_CHECKS = [
   {
     id: 'med-check',
@@ -261,6 +274,7 @@ const els = {
   caregiverLog: document.getElementById('caregiver-log'),
   equipment: document.getElementById('equipment'),
   notes: document.getElementById('notes'),
+  workflowRoles: document.getElementById('workflow-roles'),
   photoLog: document.getElementById('photo-log'),
   contactsForm: document.getElementById('contacts-form'),
   patientForm: document.getElementById('patient-form'),
@@ -559,6 +573,18 @@ function render() {
       </div>
     </div>`).join('');
   els.notes.innerHTML = state.notes.length ? state.notes.slice().reverse().map(renderEntry).join('') : empty('No notes yet.');
+  if (els.workflowRoles) {
+    els.workflowRoles.innerHTML = WORKFLOW_ROLES.map(role => `
+      <article class="item">
+        <div class="item-head">
+          <strong>${escapeHtml(role.name)}</strong>
+          <span class="tag">Active role</span>
+        </div>
+        <p class="small">${escapeHtml(role.description)}</p>
+        <p class="small">${escapeHtml(role.focus.join(' · '))}</p>
+      </article>
+    `).join('');
+  }
 }
 
 function renderPatientForm() {
@@ -1190,7 +1216,7 @@ els.importJson.addEventListener('change', async () => {
 });
 
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./sw.js').catch(error => {
+  navigator.serviceWorker.register('/dashboard/sw.js', { scope: '/dashboard/' }).catch(error => {
     console.warn('Service worker registration failed', error);
   });
 }

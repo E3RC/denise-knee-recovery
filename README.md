@@ -34,6 +34,7 @@ chmod 600 .env
 6. Verify the public page at `/`.
 7. Verify `/caregiver` prompts for the PIN before you share the Funnel URL with anyone.
 8. Confirm `tailscale up` is complete and the host is logged into the correct tailnet before you run any deploy helper.
+9. If you are using Infisical on `mele01`, set the machine identity values in the host environment and let the deploy script inject secrets at runtime instead of writing them into a long-lived `.env`.
 
 If you do not copy `data/recovery.sqlite`, the family page still works, but caregiver history starts from a fresh database on `mele01`.
 
@@ -98,6 +99,44 @@ Rollback / disable:
 tailscale funnel 8080 off
 tailscale serve --http=80 localhost:8080 off
 ```
+
+## Infisical runtime secrets
+
+For `mele01`, the preferred path is runtime injection from Infisical rather than storing a permanent `.env` on disk.
+
+Required host-side values:
+
+- `INFISICAL_DOMAIN`
+- `INFISICAL_PROJECT_ID`
+- `INFISICAL_ENV`
+- `INFISICAL_UNIVERSAL_AUTH_CLIENT_ID`
+- `INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET`
+
+The deploy helper will use `scripts/run-with-infisical.sh` when `INFISICAL_PROJECT_ID` is present.
+That keeps the app, the reminder runner, and any future companion API or MCP process pointed at the same secret source.
+
+For the final cutover, we can add `Caddy` and your domain without changing the app routes.
+
+## Reminder runner on mele01
+
+On `mele01`, install the systemd timer after the repo is in place:
+
+```bash
+bash scripts/install-reminders-systemd.sh
+```
+
+That timer runs `scripts/run-reminders.sh` every minute, which will use Infisical automatically when `INFISICAL_PROJECT_ID` is set.
+
+## App startup on mele01
+
+Install the user-level systemd service after the repo is on the host:
+
+```bash
+bash scripts/install-app-systemd.sh
+```
+
+That service starts the Docker app stack on boot and keeps it running.
+When you are ready for the final Caddy/domain cutover, we can replace the exposure layer without changing the app itself.
 
 ## Admin updates
 

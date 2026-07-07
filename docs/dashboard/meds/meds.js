@@ -3,6 +3,7 @@ const DASHBOARD_STATE_URL = '/api/dashboard-state';
 const DISPLAY_TIMEZONE = 'America/Indiana/Indianapolis';
 
 const els = {
+  medicationListCard: document.getElementById('medication-list-card'),
   medicationList: document.getElementById('medication-list'),
   medicationForm: document.getElementById('medication-form'),
   addMedication: document.getElementById('add-medication'),
@@ -14,7 +15,8 @@ const els = {
   timerCard: document.getElementById('timer-card'),
   pushoverCard: document.getElementById('pushover-card'),
   timerPreview: document.getElementById('timer-preview'),
-  pushoverPreview: document.getElementById('pushover-preview')
+  pushoverPreview: document.getElementById('pushover-preview'),
+  reminderSafety: document.getElementById('reminder-safety')
 };
 
 const DEFAULT_MED = {
@@ -220,6 +222,7 @@ function getSelectedMedication() {
 }
 
 function renderMedicationList() {
+  els.medicationListCard.hidden = detailMode;
   els.medicationList.innerHTML = state.medicationTemplates.map((item, index) => `
     <div class="item">
       <div class="item-head">
@@ -294,7 +297,9 @@ function renderMedicationForm() {
 }
 
 function renderTimerPreview() {
-  const items = state.medicationTemplates.filter(item => item.name || item.dueTime || item.scheduled);
+  const items = detailMode
+    ? [getSelectedMedication()].filter(Boolean)
+    : state.medicationTemplates.filter(item => item.name || item.dueTime || item.scheduled);
   if (!items.length) {
     els.timerPreview.innerHTML = '<div class="item muted">No medication timers yet. Once real schedules are entered, this page can drive countdown timers and next-dose tracking.</div>';
     return;
@@ -315,7 +320,9 @@ function renderTimerPreview() {
 }
 
 function renderPushoverPreview() {
-  const items = state.medicationTemplates.filter(item => item.name || item.dueTime || item.scheduled);
+  const items = detailMode
+    ? [getSelectedMedication()].filter(Boolean)
+    : state.medicationTemplates.filter(item => item.name || item.dueTime || item.scheduled);
   if (!items.length) {
     els.pushoverPreview.innerHTML = '<div class="item muted">No medication reminder rules yet. We will map these into Pushover once the actual med list and timing are confirmed.</div>';
     return;
@@ -330,6 +337,18 @@ function renderPushoverPreview() {
       <p class="small">Start / stop: ${escapeHtml(item.startRule || 'Not set')} / ${escapeHtml(item.stopRule || 'Not set')}</p>
     </div>
   `).join('');
+  if (els.reminderSafety) {
+    els.reminderSafety.innerHTML = `
+      <div class="item">
+        <div class="item-head">
+          <strong>Backup nurse rules</strong>
+          <span class="tag">Safety check</span>
+        </div>
+        <p class="small">Next-dose timers follow the last logged dose. If a scheduled med is logged late, the timer restarts from the actual time given.</p>
+        <p class="small">Spirometer reminders stay on the while-awake cadence and should not fire inside the sleep window.</p>
+      </div>
+    `;
+  }
 }
 
 function render() {

@@ -6,9 +6,7 @@
   <string>com.denise.recovery.reminders</string>
   <key>ProgramArguments</key>
   <array>
-    <string>/bin/zsh</string>
-    <string>-lc</string>
-    <string>set -a &amp;&amp; . &quot;$HOME/Library/Application Support/DeniseRecovery/reminders.env&quot; &amp;&amp; set +a &amp;&amp; cd &quot;$HOME/Library/Application Support/DeniseRecovery/reminder-runner&quot; &amp;&amp; python3 pushover_reminders.py</string>
+    <string>/Users/bsoper/.local/bin/denise-reminders</string>
   </array>
   <key>WorkingDirectory</key>
   <string>/Users/bsoper/Library/Application Support/DeniseRecovery/reminder-runner</string>
@@ -19,7 +17,7 @@
     <key>REMINDER_STATE_PATH</key>
     <string>/Users/bsoper/Library/Application Support/DeniseRecovery/reminder-runner/reminder-state.json</string>
     <key>REMINDER_WINDOW_MINUTES</key>
-    <string>30</string>
+    <string>90</string>
   </dict>
   <key>RunAtLoad</key>
   <true/>

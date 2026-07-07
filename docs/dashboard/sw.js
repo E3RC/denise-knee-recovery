@@ -1,4 +1,4 @@
-const CACHE_NAME = 'denise-dashboard-v1';
+const CACHE_NAME = 'denise-dashboard-v2';
 const PRECACHE = [
   './',
   './index.html',

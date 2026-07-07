@@ -8,6 +8,7 @@ cd "${REPO_DIR}"
 PORT="${PORT:-8080}"
 DB_PATH="${DB_PATH:-data/recovery.sqlite}"
 BACKUP_DIR="data/backups"
+INFISICAL_RUNNER="${REPO_DIR}/scripts/run-with-infisical.sh"
 
 require_command() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -20,24 +21,30 @@ require_command docker
 require_command tailscale
 require_command stat
 
-if [[ ! -f .env ]]; then
-  echo ".env is missing. Start from .env.example, set real ADMIN_TOKEN and CAREGIVER_PIN values, then rerun."
-  exit 1
+if [[ -n "${INFISICAL_PROJECT_ID:-}" ]]; then
+  require_command infisical
 fi
 
-if ! grep -Eq '^ADMIN_TOKEN=.+' .env || ! grep -Eq '^CAREGIVER_PIN=.+' .env; then
-  echo ".env must define non-empty ADMIN_TOKEN and CAREGIVER_PIN values."
-  exit 1
-fi
+if [[ -z "${INFISICAL_PROJECT_ID:-}" ]]; then
+  if [[ ! -f .env ]]; then
+    echo ".env is missing. Start from .env.example, set real ADMIN_TOKEN and CAREGIVER_PIN values, then rerun."
+    exit 1
+  fi
 
-if grep -Eq 'replace-with-a-long-random-token|replace-with-a-private' .env; then
-  echo ".env still contains placeholder secrets. Replace them before publish."
-  exit 1
-fi
+  if ! grep -Eq '^ADMIN_TOKEN=.+' .env || ! grep -Eq '^CAREGIVER_PIN=.+' .env; then
+    echo ".env must define non-empty ADMIN_TOKEN and CAREGIVER_PIN values."
+    exit 1
+  fi
 
-ENV_MODE="$(stat -f '%Lp' .env)"
-if [[ "${ENV_MODE}" != "600" ]]; then
-  echo "Warning: .env permissions are ${ENV_MODE}. Recommended: chmod 600 .env"
+  if grep -Eq 'replace-with-a-long-random-token|replace-with-a-private' .env; then
+    echo ".env still contains placeholder secrets. Replace them before publish."
+    exit 1
+  fi
+
+  ENV_MODE="$(stat -f '%Lp' .env)"
+  if [[ "${ENV_MODE}" != "600" ]]; then
+    echo "Warning: .env permissions are ${ENV_MODE}. Recommended: chmod 600 .env"
+  fi
 fi
 
 mkdir -p data "${BACKUP_DIR}"
@@ -52,7 +59,7 @@ else
 fi
 
 echo "Bringing up Denise Recovery on mele01"
-docker compose up -d --build
+"${REPO_DIR}/scripts/run-app.sh"
 
 echo "Publishing public family page through Tailscale Funnel"
 sudo tailscale funnel --bg --yes "${PORT}"

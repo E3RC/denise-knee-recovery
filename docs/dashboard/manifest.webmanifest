@@ -1,12 +1,12 @@
 {
-  "name": "Denise Recovery Dashboard",
-  "short_name": "Denise Recovery",
+  "name": "Knee'd to Know",
+  "short_name": "Knee'd",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "background_color": "#f3f5f7",
   "theme_color": "#0f766e",
-  "description": "Phone-first caregiver dashboard for Denise's recovery.",
+  "description": "Phone-first caregiver dashboard and family update app for knee recovery.",
   "icons": [
     {
       "src": "icon.svg",
