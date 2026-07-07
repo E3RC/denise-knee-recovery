@@ -19,7 +19,7 @@ if [[ -z "${REMINDER_STATE_PATH:-}" && -f "${HOME}/Library/Application Support/D
 fi
 
 if [[ -n "${INFISICAL_PROJECT_ID:-}" ]]; then
-  exec "${REPO_DIR}/scripts/run-with-infisical.sh" python3 scripts/pushover_reminders.py
+  exec "${REPO_DIR}/scripts/run-with-infisical.sh" python3 scripts/pushover_reminders.py "$@"
 fi
 
-exec python3 scripts/pushover_reminders.py
+exec python3 scripts/pushover_reminders.py "$@"
