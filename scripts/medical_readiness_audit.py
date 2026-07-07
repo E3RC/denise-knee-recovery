@@ -73,6 +73,11 @@ REQUIRED_MED_IDS = {
     "cephalexin-evening-07072026",
     "journavx-12h-07072026",
     "lyrica-bedtime-07072026",
+    "senokot-morning-07072026",
+    "senokot-evening-07072026",
+    "txa-evening-07072026",
+    "txa-evening-07082026",
+    "txa-evening-07092026",
 }
 REQUIRED_PRN_IDS = {
     "oxy-next-dose-0258",

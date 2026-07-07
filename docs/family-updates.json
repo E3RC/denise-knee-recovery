@@ -1,15 +1,15 @@
 {
-  "lastUpdated": "2026-07-06T16:45:20-04:00",
+  "lastUpdated": "2026-07-07T07:37:22-04:00",
   "updates": [
     {
-      "date": "2026-07-06",
-      "dayNumber": 0,
-      "headline": "Home and settling in",
-      "publicUpdate": "Denise has been home since about 3:00 PM and is settling in for recovery this afternoon.",
-      "painTrend": "Resting comfortably",
-      "mobility": "Home and getting settled",
-      "ptMilestone": "Home from surgery center",
-      "mood": "Relieved",
+      "date": "2026-07-07",
+      "dayNumber": 1,
+      "headline": "Post-op day 1",
+      "publicUpdate": "Denise is home, resting, and working through the first recovery day. The focus today is short walks, fluids, breathing exercises, and staying ahead of swelling.",
+      "painTrend": "Managed",
+      "mobility": "Resting with short assisted walks",
+      "ptMilestone": "Post-op day 1",
+      "mood": "Tired but steady",
       "needsVisitors": "Please text Brent before visiting.",
       "showOnWeb": "YES"
     },
@@ -17,7 +17,7 @@
       "date": "2026-07-06",
       "dayNumber": 0,
       "headline": "Positive update from the surgeon",
-      "publicUpdate": "The surgery went well. We received a positive update from the surgeon, her vitals are stable, and everything is aligned well. She will head home after she meets recovery goals like walking and eating, and the nurse will go over the discharge instructions with us.",
+      "publicUpdate": "The surgery went well. We received a positive update from the surgeon, her vitals are stable, and everything is aligned well. She came home after meeting recovery goals like walking and eating, and the nurse reviewed the discharge instructions.",
       "painTrend": "Stable",
       "mobility": "Recovery milestones underway",
       "ptMilestone": "Surgery complete",
