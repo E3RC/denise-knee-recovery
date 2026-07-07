@@ -11,11 +11,11 @@ if [[ -z "${INFISICAL_PROJECT_ID:-}" && -f "${REPO_DIR}/.env" ]]; then
   set +a
 fi
 
-if [[ -z "${REMINDER_CONFIG_PATH:-}" && -f "${HOME}/Library/Application Support/DeniseRecovery/reminder-runner/reminders.json" ]]; then
-  export REMINDER_CONFIG_PATH="${HOME}/Library/Application Support/DeniseRecovery/reminder-runner/reminders.json"
+if [[ -z "${REMINDER_CONFIG_PATH:-}" ]]; then
+  export REMINDER_CONFIG_PATH="${REPO_DIR}/data/reminders.json"
 fi
-if [[ -z "${REMINDER_STATE_PATH:-}" && -f "${HOME}/Library/Application Support/DeniseRecovery/reminder-runner/reminder-state.json" ]]; then
-  export REMINDER_STATE_PATH="${HOME}/Library/Application Support/DeniseRecovery/reminder-runner/reminder-state.json"
+if [[ -z "${REMINDER_STATE_PATH:-}" ]]; then
+  export REMINDER_STATE_PATH="${REPO_DIR}/data/reminder-state.json"
 fi
 
 if [[ -n "${INFISICAL_PROJECT_ID:-}" ]]; then

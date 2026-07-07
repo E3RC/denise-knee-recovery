@@ -161,7 +161,7 @@ curl -X POST http://localhost:8080/api/admin/update \
 
 ## Pushover reminders
 
-This repo now includes a host-side reminder runner in `scripts/pushover_reminders.py`.
+This repo includes a host-side reminder runner in `scripts/pushover_reminders.py`.
 
 Suggested setup:
 
@@ -169,21 +169,6 @@ Suggested setup:
 cp templates/reminders.example.json data/reminders.json
 python3 scripts/pushover_reminders.py
 ```
-
-For this Mac, the simplest always-on option is the included launchd agent:
-
-```bash
-bash scripts/install-reminders-launchd.sh
-```
-
-The installer copies only the Pushover keys into `~/Library/Application Support/DeniseRecovery/reminders.env` so launchd can read them without depending on the repo path.
-It also copies the reminder runner and `data/reminders.json` into `~/Library/Application Support/DeniseRecovery/reminder-runner/` because launchd on this Mac cannot read the repo under `Documents` reliably.
-On this Mac the launchd agent checks every minute and uses a 90-minute catch-up window so it can still deliver reminders if the machine wakes a little late.
-
-It reads:
-- `PUSHOVER_USER_KEY`
-- `PUSHOVER_APP_TOKEN`
-- `data/reminders.json`
 
 Diagnostics:
 
@@ -193,16 +178,6 @@ python3 scripts/pushover_reminders.py --forecast 300
 ```
 
 The live Denise schedule is intentionally ignored by Git as `data/reminders.json` because it can contain private recovery data. Use the tracked template for shape, and keep the live copy on the host or in the private database/secrets workflow.
-
-Recommended cron on `mele01`:
-
-```cron
-*/5 * * * * cd /path/to/repo && set -a && . ./.env && set +a && python3 scripts/pushover_reminders.py >> /tmp/denise-reminders.log 2>&1
-```
-
-The reminder template already includes starter items for meals, medication checks, walks, exercises, and a PT follow-up example. Update the private live file once the real discharge plan is fully entered.
-
-If reminders still do not arrive, check the launchd logs in `~/Library/Application Support/DeniseRecovery/reminder-runner/reminders-launchd.log` and `~/Library/Application Support/DeniseRecovery/reminder-runner/reminders-launchd.err`, then run the `--due` and `--forecast` diagnostics against the live support-folder copy.
 
 ## Caregiver sign-in
 

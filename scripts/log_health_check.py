@@ -13,12 +13,12 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 
-DEFAULT_BASE = Path.home() / "Library/Application Support/DeniseRecovery/reminder-runner"
-DEFAULT_LOG = DEFAULT_BASE / "reminders-launchd.log"
-DEFAULT_ERR = DEFAULT_BASE / "reminders-launchd.err"
+DEFAULT_BASE = Path(os.environ.get("LOG_HEALTH_BASE", str(Path.home() / ".local/share/DeniseRecovery/reminder-runner")))
+DEFAULT_LOG = DEFAULT_BASE / "reminders.log"
+DEFAULT_ERR = DEFAULT_BASE / "reminders.err"
 DEFAULT_STATE = DEFAULT_BASE / "log-health-state.json"
 DEFAULT_SUMMARY = DEFAULT_BASE / "log-health-summary.txt"
-DEFAULT_LABEL = "com.denise.recovery.reminders"
+DEFAULT_LABEL = "denise-recovery-reminders.service"
 DEFAULT_TIMEZONE = "America/Indiana/Indianapolis"
 
 ERROR_PATTERNS = [
@@ -28,7 +28,7 @@ ERROR_PATTERNS = [
     re.compile(r"Traceback \(most recent call last\)", re.IGNORECASE),
     re.compile(r"ModuleNotFoundError", re.IGNORECASE),
     re.compile(r"PermissionError", re.IGNORECASE),
-    re.compile(r"launchctl.*failed", re.IGNORECASE),
+    re.compile(r"systemctl.*failed", re.IGNORECASE),
     re.compile(r"error", re.IGNORECASE),
 ]
 
@@ -154,7 +154,7 @@ def trigger_restart(agent_label: str) -> None:
         return
     try:
         subprocess.run(
-            ["launchctl", "kickstart", "-k", f"gui/{os.getuid()}/{agent_label}"],
+            ["systemctl", "--user", "restart", agent_label],
             check=False,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,

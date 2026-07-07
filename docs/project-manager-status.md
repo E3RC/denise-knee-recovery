@@ -22,6 +22,6 @@
 ## Open risk
 
 - `vendor/MedAgents` is now present as a local medical-reasoning reference layer for Dr Knees / backup nurse workflow mapping.
-- The live reminder runner uses the support-folder config path, so host-side runs must set `REMINDER_CONFIG_PATH=reminders.json` inside the reminder-runner directory.
+- The live reminder runner reads `data/reminders.json` from the repo root and runs via systemd timer.
 - The reminder runner supports `--due` and `--forecast <minutes>` for proving what will fire without sending Pushover messages.
-- The log-health checker watches `reminders-launchd.log` and `reminders-launchd.err`, writes a summary file, and attempts a reminder-agent restart when a real new error pattern is detected.
+- The log-health checker watches `reminders.log` and `reminders.err`, writes a summary file, and attempts a systemd service restart when a real new error pattern is detected.

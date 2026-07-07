@@ -48,4 +48,4 @@ Source of truth for the Denise recovery workflow:
 - Physical therapy appointment details
 - Weight-bearing instructions
 - Any surgeon-specific restrictions not already captured in the notes
-- Live reminder runner on this Mac uses the support-folder copy at `~/Library/Application Support/DeniseRecovery/reminder-runner/` with `REMINDER_CONFIG_PATH=reminders.json`.
+- The live reminder runner on mele01 uses systemd and reads from `data/reminders.json`. Run `--due` or `--forecast` from the repo root for diagnostics.
