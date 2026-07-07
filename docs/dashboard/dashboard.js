@@ -1031,7 +1031,7 @@ function csvCell(value) {
   return `"${text.replaceAll('"', '""')}"`;
 }
 
-els.surgeryDate.addEventListener('change', () => {
+if (els.surgeryDate) els.surgeryDate.addEventListener('change', () => {
   state.surgeryDate = els.surgeryDate.value || SURGERY_DATE;
   render();
   saveState();
