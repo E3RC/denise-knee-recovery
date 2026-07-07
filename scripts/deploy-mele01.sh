@@ -72,10 +72,16 @@ echo "Bringing up Denise Recovery on mele01"
 "${REPO_DIR}/scripts/run-app.sh"
 
 echo "Publishing public family page through Tailscale Funnel"
-sudo tailscale funnel --bg --yes "${PORT}"
+if ! tailscale funnel --bg --yes "${PORT}"; then
+  echo "Tailscale Funnel needs operator/root permission to update serve config."
+  echo "Run once on mele01:"
+  echo "  sudo tailscale set --operator=\$USER"
+  echo "Then rerun:"
+  echo "  tailscale funnel --bg --yes ${PORT}"
+fi
 
 echo "Denise Recovery is running."
-echo "Family page is public through the Funnel URL."
+echo "Family page is public through the Funnel URL after Funnel points at port ${PORT}."
 echo "Caregiver sign-in stays at /caregiver and /dashboard stays PIN-protected."
 echo "Verify before sharing:"
 echo "  1. Open / and confirm the family-safe landing page loads."
