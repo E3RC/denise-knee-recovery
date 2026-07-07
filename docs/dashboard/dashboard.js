@@ -554,17 +554,21 @@ function render() {
   els.surgeryDate.value = state.surgeryDate || SURGERY_DATE;
   els.day.textContent = `Day ${recoveryDay()}`;
   els.countdown.textContent = countdownText();
-  renderContactsForm();
-  renderPatientForm();
-  renderPhotoLog();
-  renderMilestones();
-  renderCaregiverLog();
+  renderPainBadge();
+  renderNextMeds();
+  renderMedicationsList();
   renderQuickChecks();
   els.today.innerHTML = renderTodayTasks();
+  renderContactsForm();
+  renderCaregiverLog();
+  els.activity.innerHTML = state.activityLog.length ? state.activityLog.slice().reverse().map(renderEntry).join('') : empty('No activity logged yet.');
+  els.notes.innerHTML = state.notes.length ? state.notes.slice().reverse().map(renderEntry).join('') : empty('');
   els.checklist.innerHTML = state.checklist.map(renderChecklist).join('');
   els.nextTask.innerHTML = renderNextTask(phase);
   els.followUpSummary.innerHTML = `<div class="summary-text">${escapeHtml(buildFollowUpSummary())}</div>`;
-  els.activity.innerHTML = state.activityLog.length ? state.activityLog.slice().reverse().map(renderEntry).join('') : empty('No activity logged yet.');
+  renderPatientForm();
+  renderPhotoLog();
+  renderMilestones();
   els.equipment.innerHTML = state.equipment.map(item => `
     <div class="item">
       <div class="item-head">
@@ -572,7 +576,6 @@ function render() {
         <span class="tag">${item.ready ? 'Ready' : 'Pending'}</span>
       </div>
     </div>`).join('');
-  els.notes.innerHTML = state.notes.length ? state.notes.slice().reverse().map(renderEntry).join('') : empty('No notes yet.');
   if (els.workflowRoles) {
     els.workflowRoles.innerHTML = WORKFLOW_ROLES.map(role => `
       <article class="item">
@@ -585,6 +588,65 @@ function render() {
       </article>
     `).join('');
   }
+}
+
+function renderPainBadge() {
+  var badge = document.getElementById('pain-badge');
+  if (!badge) return;
+  var logs = state.activityLog || [];
+  var lastPain = null;
+  for (var i = logs.length - 1; i >= 0; i--) {
+    if (logs[i].type === 'Pain score') { lastPain = logs[i]; break; }
+  }
+  if (lastPain) {
+    badge.textContent = lastPain.text.replace('Pain score: ', '').replace('Pain score:', '');
+    badge.style.color = '';
+  } else {
+    badge.textContent = '--';
+    badge.style.color = 'var(--muted)';
+  }
+}
+
+function renderNextMeds() {
+  var container = document.getElementById('next-meds-list');
+  if (!container) return;
+  var meds = state.medicationTemplates || [];
+  var now = new Date();
+  var items = [];
+  meds.forEach(function(m) {
+    if (!m.lastGivenAt && !m.nextDueAt) return;
+    var name = m.name || '';
+    var nextAt = m.nextDueAt ? new Date(m.nextDueAt) : null;
+    var cls = '';
+    var label = '';
+    if (nextAt) {
+      var diffMs = nextAt - now;
+      var diffMin = Math.round(diffMs / 60000);
+      if (diffMs < 0) { cls = 'overdue'; label = 'Overdue ' + Math.abs(diffMin) + 'm ago'; }
+      else if (diffMin < 60) { cls = 'soon'; label = 'Due in ' + diffMin + 'm'; }
+      else { label = 'Next: ' + nextAt.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}); }
+    }
+    var disp = m.dispensed ? ' &#10003;' : '';
+    items.push('<div class="med-timer"><span class="med-name">' + escapeHtml(name) + disp + '</span><span class="med-due ' + cls + '">' + escapeHtml(label) + '</span></div>');
+  });
+  container.innerHTML = items.length ? items.join('') : '<p class="small" style="color:var(--muted)">No medication timers active.</p>';
+}
+
+function renderMedicationsList() {
+  var container = document.getElementById('medications-list');
+  if (!container) return;
+  var meds = state.medicationTemplates || [];
+  container.innerHTML = meds.map(function(m) {
+    var name = m.name || 'Unnamed';
+    var dose = m.dose || '';
+    var last = m.lastGivenAt ? new Date(m.lastGivenAt).toLocaleString() : 'Not yet';
+    var nextDue = m.nextDueAt ? new Date(m.nextDueAt).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}) : '--';
+    return '<div class="item" style="padding:10px 0;border-bottom:1px solid var(--line)">' +
+      '<div class="item-head"><strong>' + escapeHtml(name) + '</strong> <span class="tag">' + escapeHtml(dose) + '</span></div>' +
+      '<div class="small">Last: ' + escapeHtml(last) + ' | Next: ' + escapeHtml(nextDue) + '</div>' +
+      (m.notes ? '<div class="small" style="color:var(--muted)">' + escapeHtml(m.notes.slice(-100)) + '</div>' : '') +
+      '</div>';
+  }).join('') || '<p class="small">No medications configured.</p>';
 }
 
 function renderPatientForm() {
@@ -1012,7 +1074,7 @@ els.patientForm.addEventListener('input', event => {
   }
 });
 
-els.photoLog.addEventListener('input', event => {
+els.photoLog && els.photoLog.addEventListener('input', event => {
   const target = event.target.closest('[data-photo-index][data-photo-field]');
   if (!target) return;
   const index = Number(target.dataset.photoIndex);
@@ -1031,7 +1093,7 @@ els.milestones.addEventListener('input', event => {
   item.name = target.value;
 });
 
-els.caregiverLog.addEventListener('input', event => {
+els.caregiverLog && els.caregiverLog.addEventListener('input', event => {
   const target = event.target.closest('[data-log-index][data-log-field]');
   if (!target) return;
   const index = Number(target.dataset.logIndex);
@@ -1043,13 +1105,13 @@ els.caregiverLog.addEventListener('input', event => {
 
 els.contactsForm.addEventListener('blur', persistAndRender, true);
 els.patientForm.addEventListener('blur', persistAndRender, true);
-els.photoLog.addEventListener('blur', persistAndRender, true);
-els.milestones.addEventListener('blur', persistAndRender, true);
-els.caregiverLog.addEventListener('blur', persistAndRender, true);
+els.photoLog && els.photoLog.addEventListener('blur', persistAndRender, true);
 
-els.savePatient.addEventListener('click', persistAndRender);
-els.saveContacts.addEventListener('click', persistAndRender);
-els.addPhotoLog.addEventListener('click', () => {
+els.caregiverLog && els.caregiverLog.addEventListener('blur', persistAndRender, true);
+
+if (els.savePatient) els.savePatient.addEventListener('click', persistAndRender);
+if (els.saveContacts) els.saveContacts.addEventListener('click', persistAndRender);
+if (els.addPhotoLog) els.addPhotoLog.addEventListener('click', () => {
   state.photoLog.unshift({
     when: new Date().toISOString(),
     label: '',
@@ -1064,7 +1126,7 @@ els.addPhotoLog.addEventListener('click', () => {
   });
   persistAndRender();
 });
-els.addLogEntry.addEventListener('click', () => {
+if (els.addLogEntry) els.addLogEntry.addEventListener('click', () => {
   state.dailyLog.unshift({
     when: new Date().toISOString(),
     status: '',
@@ -1082,15 +1144,15 @@ function addQuickCaregiverLog(status, details) {
   persistAndRender();
 }
 
-els.quickMedicationLog.addEventListener('click', () => {
+els.quickMedicationLog && els.quickMedicationLog.addEventListener('click', () => {
   addQuickCaregiverLog('Medication', 'Denise took the one medication she was supposed to take that morning.');
 });
 
-els.quickAnxietyLog.addEventListener('click', () => {
+els.quickAnxietyLog && els.quickAnxietyLog.addEventListener('click', () => {
   addQuickCaregiverLog('Mood', 'Denise was feeling anxious.');
 });
 
-els.quickFastingLog.addEventListener('click', () => {
+els.quickFastingLog && els.quickFastingLog.addEventListener('click', () => {
   addQuickCaregiverLog('Pre-op / fasting', 'Denise knew she had to stop eating by midnight.');
 });
 
@@ -1100,12 +1162,12 @@ els.quickCheckGrid.addEventListener('click', event => {
   addOrUpdateQuickCheck(button.dataset.quickCheck);
 });
 
-els.resetQuickChecks.addEventListener('click', () => {
+els.resetQuickChecks && els.resetQuickChecks.addEventListener('click', () => {
   state.quickChecks = [];
   persistAndRender();
 });
 
-els.caregiverLog.addEventListener('click', event => {
+els.caregiverLog && els.caregiverLog.addEventListener('click', event => {
   const button = event.target.closest('[data-log-remove]');
   if (!button) return;
   const index = Number(button.dataset.logRemove);
@@ -1114,7 +1176,7 @@ els.caregiverLog.addEventListener('click', event => {
   persistAndRender();
 });
 
-els.photoLog.addEventListener('click', event => {
+els.photoLog && els.photoLog.addEventListener('click', event => {
   const button = event.target.closest('[data-photo-remove]');
   if (!button) return;
   const index = Number(button.dataset.photoRemove);
@@ -1123,7 +1185,7 @@ els.photoLog.addEventListener('click', event => {
   persistAndRender();
 });
 
-els.addMilestone.addEventListener('click', () => {
+if (els.addMilestone) els.addMilestone.addEventListener('click', () => {
   const name = window.prompt('Milestone name');
   if (!name) return;
   state.milestoneTemplates.push({
@@ -1134,7 +1196,7 @@ els.addMilestone.addEventListener('click', () => {
   persistAndRender();
 });
 
-els.milestones.addEventListener('click', event => {
+if (els.milestones) els.milestones.addEventListener('click', event => {
   const button = event.target.closest('[data-milestone-toggle]');
   if (!button) return;
   const index = Number(button.dataset.milestoneToggle);
@@ -1148,7 +1210,7 @@ els.milestones.addEventListener('click', event => {
   persistAndRender();
 });
 
-els.form.addEventListener('submit', (event) => {
+els.form && els.form.addEventListener('submit', (event) => {
   event.preventDefault();
   const formData = new FormData(els.form);
   const type = formData.get('type');
@@ -1165,50 +1227,51 @@ els.form.addEventListener('submit', (event) => {
   else if (type === 'note') state.notes.push({ ...entry, type: 'Note' });
   else state.timeline.push({ ...entry, type: 'Timeline' });
   saveState();
-  els.form.reset();
+  els.form && els.form.reset();
   render();
 });
 
-els.reset.addEventListener('click', () => {
+els.reset && els.reset.addEventListener('click', () => {
   localStorage.removeItem(STORAGE_KEY);
   state = structuredClone(DEFAULT_STATE);
   saveState();
   render();
 });
 
-els.exportJson.addEventListener('click', exportState);
-els.exportCsv = document.getElementById('export-csv');
-els.exportCsv.addEventListener('click', exportCsv);
+if (els.exportJson) els.exportJson.addEventListener('click', exportState);
+(function() {
+  var btn = document.getElementById('export-csv');
+  if (btn) btn.addEventListener('click', exportCsv);
+})();
 
-els.copySummary.addEventListener('click', async () => {
+if (els.copySummary) els.copySummary.addEventListener('click', async () => {
   try {
     await navigator.clipboard.writeText(buildFollowUpSummary());
     els.copySummary.textContent = 'Copied';
     setTimeout(() => { els.copySummary.textContent = 'Copy'; }, 1200);
   } catch (error) {
-    alert('Copy failed. Your browser may block clipboard access.');
     console.error(error);
   }
 });
 
-els.printSummary.addEventListener('click', () => {
+if (els.printSummary) els.printSummary.addEventListener('click', () => {
   window.print();
 });
 
-els.logout.addEventListener('click', async () => {
+if (els.logout) els.logout.addEventListener('click', async () => {
   try {
     await fetch('/api/caregiver-logout', { method: 'POST' });
   } catch {}
   window.location.href = '/caregiver';
 });
 
-els.importJson.addEventListener('change', async () => {
+if (els.importJson) els.importJson.addEventListener('change', async () => {
   const file = els.importJson.files && els.importJson.files[0];
   if (!file) return;
   try {
     await importState(file);
   } catch (error) {
-    alert('Import failed. Check that the file is valid JSON.');
+    alert('Import failed.');
     console.error(error);
   } finally {
     els.importJson.value = '';

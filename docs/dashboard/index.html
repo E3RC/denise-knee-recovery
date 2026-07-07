@@ -15,11 +15,10 @@
       <div class="brand-row">
         <img src="/dashboard/icon.svg" alt="Knee'd to Know logo" class="brand-logo" />
         <div>
-      <p class="eyebrow">Caregiver dashboard</p>
-      <h1>Knee'd to Know</h1>
+          <p class="eyebrow">Caregiver dashboard</p>
+          <h1>Knee'd to Know</h1>
         </div>
       </div>
-      <p class="lede">Phone-first recovery tracking for Brent. Local-only for now. No dose calculations. No surgeon instructions replaced.</p>
       <div class="hero-grid">
         <div class="hero-card">
           <span class="label">Recovery day</span>
@@ -29,185 +28,97 @@
           <span class="label">Countdown</span>
           <strong id="countdown">Loading...</strong>
         </div>
-        <label class="hero-card">
-          <span class="label">Surgery date</span>
-          <input id="surgery-date" type="date" />
-        </label>
         <div class="hero-card">
-          <span class="label">Storage</span>
-          <strong>Local browser + SQLite sync</strong>
+          <span class="label">Pain</span>
+          <strong id="pain-badge">--</strong>
         </div>
       </div>
       <div class="hero-actions">
-        <button id="export-json" class="ghost" type="button">Export JSON</button>
-        <button id="export-csv" class="ghost" type="button">Export CSV</button>
-        <label class="ghost file-button" for="import-json">Import JSON</label>
-        <input id="import-json" type="file" accept="application/json" hidden />
         <button id="logout" class="ghost" type="button">Lock dashboard</button>
+        <button id="export-json" class="ghost" type="button">Export</button>
       </div>
-      <nav class="subnav" aria-label="Dashboard navigation">
-        <a class="subnav-link is-active" href="/dashboard">Overview</a>
-        <a class="subnav-link" href="/dashboard/meds/">Meds</a>
-      </nav>
     </section>
 
     <section class="grid">
-      <section class="card wide" id="care-profile-card">
-        <div class="section-head">
-          <h2>Care Profile</h2>
-          <button id="save-patient" class="ghost" type="button">Save profile</button>
+      <!-- COMMAND CENTER - always visible first -->
+      <section class="card wide cmd-card">
+        <div class="ai-bar-inline">
+          <button id="ai-mic" class="ghost-ai" title="Voice input" type="button">&#127908;</button>
+          <input type="text" id="ai-input" placeholder="Say or type what happened..." autocomplete="off" />
+          <button id="ai-send" title="Send" type="button">&#8593;</button>
         </div>
-        <p class="small">Keep the confirmed Denise facts and surgery metadata explicit here so the workflow has a stable intake record.</p>
-        <form id="patient-form" class="stack"></form>
+        <div class="ai-confirm-inline" id="ai-confirm" style="display:none">
+          <div class="summary" id="ai-summary"></div>
+          <div class="actions-row">
+            <button class="btn-apply" id="ai-apply">Apply</button>
+            <button class="btn-cancel" id="ai-cancel">Cancel</button>
+          </div>
+        </div>
       </section>
 
+      <!-- NEXT DOSE TIMERS -->
+      <section class="card wide" id="next-meds-card">
+        <h2>Next Meds</h2>
+        <div id="next-meds-list" class="stack"></div>
+      </section>
+
+      <!-- QUICK CHECKS -->
       <section class="card wide">
         <div class="section-head">
-          <h2>Workflow Roles</h2>
+          <h2>Quick Check</h2>
         </div>
-        <div id="workflow-roles" class="stack"></div>
-      </section>
-
-      <section class="card wide" id="safety-and-contacts">
-        <div class="panel-grid">
-          <article class="panel">
-            <h2>Safety</h2>
-            <p class="small">Not medical advice. Use only surgeon and pharmacy instructions for medication timing and dosing. Call the surgeon or emergency services if you are worried about urgent symptoms.</p>
-            <p class="small">This dashboard is a caregiver tool, not a replacement for clinical instructions.</p>
-          </article>
-          <article class="panel">
-            <div class="section-head">
-              <h2>Contacts</h2>
-              <button id="save-contacts" class="ghost" type="button">Save contacts</button>
-            </div>
-            <form id="contacts-form" class="stack"></form>
-          </article>
-        </div>
-      </section>
-
-      <section class="card wide">
-        <div class="section-head">
-          <h2>Today</h2>
-          <button id="reset-demo" class="ghost">Reset sample data</button>
-        </div>
-        <div id="today-list" class="stack"></div>
-      </section>
-
-      <section class="card wide" id="follow-up-card">
-        <h2>Daily Checklist</h2>
-        <div id="checklist" class="checklist"></div>
-      </section>
-
-      <section class="card wide">
-        <div class="section-head">
-          <h2>Caregiver Quick Checks</h2>
-          <button id="reset-quick-checks" class="ghost" type="button">Clear quick checks</button>
-        </div>
-        <p class="small">Use these for one-tap caregiver entry during the day. Each tap logs a timestamped caregiver note and can also advance the daily checklist.</p>
         <div id="quick-check-grid" class="quick-check-grid"></div>
       </section>
 
-      <section class="card wide next-task">
-        <h2>Next Up</h2>
-        <div id="next-task" class="item"></div>
-      </section>
-
+      <!-- TODAY -->
       <section class="card wide">
-        <div class="section-head">
-          <h2>Follow-up Summary</h2>
-          <div class="section-actions">
-            <button id="copy-summary" class="ghost" type="button">Copy</button>
-            <button id="print-summary" class="ghost" type="button">Print</button>
-          </div>
-        </div>
-        <div id="follow-up-summary" class="item"></div>
+        <h2>Today</h2>
+        <div id="today-list" class="stack"></div>
       </section>
 
-      <section class="card">
-        <h2>Quick Add</h2>
-        <form id="event-form" class="stack">
-          <label>Type
-            <select name="type">
-              <option value="timeline">Timeline event</option>
-              <option value="medication">Medication event</option>
-              <option value="walk">Walk</option>
-              <option value="ice">Cold therapy</option>
-              <option value="meal">Meal</option>
-              <option value="sleep">Sleep</option>
-              <option value="note">Note</option>
-              <option value="equipment">Equipment</option>
-            </select>
-          </label>
-          <label>Details
-            <textarea name="text" rows="4" placeholder="What happened?"></textarea>
-          </label>
-          <button class="primary" type="submit">Add entry</button>
-        </form>
-      </section>
+      <!-- MEDICATIONS collapsed -->
+      <details class="card wide section-collapse">
+        <summary class="section-head"><h2>Medications</h2><span class="toggle-icon">&#9660;</span></summary>
+        <div id="medications-list" class="stack"></div>
+      </details>
 
-      <section class="card">
-        <h2>Activity Log</h2>
+      <!-- ACTIVITY LOG collapsed -->
+      <details class="card wide section-collapse">
+        <summary class="section-head"><h2>Activity Log</h2><span class="toggle-icon">&#9660;</span></summary>
         <div id="activity" class="stack"></div>
-      </section>
+      </details>
 
-      <section class="card wide">
+      <!-- VITALS & NOTES collapsed -->
+      <details class="card wide section-collapse">
+        <summary class="section-head"><h2>Vitals &amp; Notes</h2><span class="toggle-icon">&#9660;</span></summary>
         <div class="section-head">
-          <h2>Caregiver Log</h2>
-          <div class="section-actions">
-            <button id="quick-medication-log" class="ghost" type="button">Morning medication taken</button>
-            <button id="quick-anxiety-log" class="ghost" type="button">Feeling anxious</button>
-            <button id="quick-fasting-log" class="ghost" type="button">Stop eating at midnight</button>
-            <button id="add-log-entry" class="ghost" type="button">Add log entry</button>
-          </div>
+          <h3>Latest Vitals</h3>
+          <button id="add-log-entry" class="ghost" type="button">Add entry</button>
         </div>
-        <p class="small">Use this like a simple editable sheet for daily status updates and notes.</p>
         <div id="caregiver-log" class="caregiver-log"></div>
-      </section>
+        <div id="notes" class="stack" style="margin-top:12px"></div>
+      </details>
 
-      <section class="card">
-        <div class="section-head">
-          <h2>Milestones</h2>
-          <button id="add-milestone" class="ghost" type="button">Add milestone</button>
-        </div>
+      <!-- EVERYTHING ELSE collapsed -->
+      <details class="card wide section-collapse">
+        <summary class="section-head"><h2>More</h2><span class="toggle-icon">&#9660;</span></summary>
+        <div id="patient-form" class="stack"></div>
+        <div id="workflow-roles" class="stack"></div>
+        <div id="contacts-form" class="stack"></div>
         <div id="milestones" class="stack"></div>
-        <div class="small">Edit milestone names in place. Mark complete or incomplete to keep a timestamped history.</div>
-      </section>
-
-      <section class="card">
-        <h2>Equipment</h2>
         <div id="equipment" class="stack"></div>
-      </section>
-
-      <section class="card wide">
-        <div class="section-head">
-          <h2>Photo Log</h2>
-          <div class="section-actions">
-            <button id="add-photo-log" class="ghost" type="button">Add photo entry</button>
-          </div>
-        </div>
-        <p class="small">Keep the actual images in a private folder or photo library outside Git. Record the filename or path here along with measurements for later comparison.</p>
         <div id="photo-log" class="photo-log"></div>
-      </section>
+        <div id="checklist" class="checklist"></div>
+        <div id="next-task" class="item"></div>
+        <div id="follow-up-summary" class="item"></div>
+      </details>
 
+      <!-- SAFETY always at bottom -->
       <section class="card wide">
-        <h2>Notes</h2>
-        <div id="notes" class="stack"></div>
+        <p class="small" style="color:var(--muted);text-align:center">Not medical advice. Use surgeon and pharmacy instructions for medication timing and dosing.</p>
       </section>
     </section>
   </main>
-
-  <div class="ai-confirm" id="ai-confirm" style="display:none">
-    <div class="summary" id="ai-summary"></div>
-    <div class="actions-row">
-      <button class="btn-apply" id="ai-apply">Apply</button>
-      <button class="btn-cancel" id="ai-cancel">Cancel</button>
-    </div>
-  </div>
-  <div class="ai-bar">
-    <input type="text" id="ai-input" placeholder="Say or type what happened..." autocomplete="off" />
-    <button id="ai-mic" class="ghost-ai" title="Voice input" type="button">&#127908;</button>
-    <button id="ai-send" title="Send" type="button">&#8593;</button>
-  </div>
 
   <script src="/dashboard/dashboard.js"></script>
 </body>

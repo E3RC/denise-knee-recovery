@@ -1,6 +1,18 @@
 {
-  "lastUpdated": "2026-07-07T11:18:25-04:00",
+  "lastUpdated": "2026-07-07T17:00:00-04:00",
   "updates": [
+    {
+      "date": "2026-07-07",
+      "dayNumber": 1,
+      "headline": "First full day at home",
+      "publicUpdate": "Denise is resting comfortably at home. She is walking with assistance, staying hydrated, and managing medications on schedule. Thank you for the kind messages.",
+      "painTrend": "Well managed",
+      "mobility": "Short assisted walks with walker",
+      "ptMilestone": "Walking every hour, ice/elevation sessions",
+      "mood": "Positive",
+      "needsVisitors": "Please text Brent before visiting.",
+      "showOnWeb": "YES"
+    },
     {
       "date": "2026-07-06",
       "dayNumber": 0,
