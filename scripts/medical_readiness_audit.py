@@ -75,6 +75,7 @@ REQUIRED_MED_IDS = {
     "lyrica-bedtime-07072026",
     "senokot-morning-07072026",
     "senokot-evening-07072026",
+    "txa-surgery-night-07062026",
     "txa-evening-07072026",
     "txa-evening-07082026",
     "txa-evening-07092026",
