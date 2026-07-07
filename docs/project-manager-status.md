@@ -16,10 +16,12 @@
 - Keep the reminder schedule aligned with the discharge packet and logged dose times.
 - Do not invent medication timing or dosing.
 - Treat the backup nurse role as the source for reminder and med-safety checks.
-- Run the scheduled log-health check every 15 minutes to catch launchd or reminder regressions early.
+- Run the scheduled log-health check daily with Pushover notifications off by default; use manual checks during active debugging.
+- Until Wednesday morning, ignore the 10:00 PM cutoff and keep overnight medication, vitals, and incentive-spirometer reminders active.
 
 ## Open risk
 
 - `vendor/MedAgents` is now present as a local medical-reasoning reference layer for Dr Knees / backup nurse workflow mapping.
 - The live reminder runner uses the support-folder config path, so host-side runs must set `REMINDER_CONFIG_PATH=reminders.json` inside the reminder-runner directory.
-- The log-health checker watches `reminders-launchd.log` and `reminders-launchd.err`, writes a summary file, and attempts a reminder-agent restart when a real error pattern is detected.
+- The reminder runner supports `--due` and `--forecast <minutes>` for proving what will fire without sending Pushover messages.
+- The log-health checker watches `reminders-launchd.log` and `reminders-launchd.err`, writes a summary file, and attempts a reminder-agent restart when a real new error pattern is detected.

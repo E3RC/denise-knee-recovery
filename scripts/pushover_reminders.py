@@ -9,6 +9,7 @@ import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Any
 from zoneinfo import ZoneInfo
 
 
@@ -20,11 +21,7 @@ DAY_NAMES = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 
 
 def main() -> int:
-    user_key = env_required("PUSHOVER_USER_KEY")
-    app_token = env_required("PUSHOVER_APP_TOKEN")
-    if not user_key or not app_token:
-        return 2
-
+    mode = parse_mode(sys.argv[1:])
     config_path = Path(os.environ.get("REMINDER_CONFIG_PATH", DEFAULT_CONFIG))
     state_path = Path(os.environ.get("REMINDER_STATE_PATH", DEFAULT_STATE))
 
@@ -42,10 +39,26 @@ def main() -> int:
     tz = ZoneInfo(timezone_name)
     window_minutes = int(os.environ.get("REMINDER_WINDOW_MINUTES") or config.get("windowMinutes") or DEFAULT_WINDOW_MINUTES)
     now = datetime.now(tz)
-    window_start = now - timedelta(minutes=window_minutes)
+    forecast_minutes = mode.get("forecast_minutes")
+    if isinstance(forecast_minutes, int):
+        window_start = now
+        window_end = now + timedelta(minutes=forecast_minutes)
+    else:
+        window_start = now - timedelta(minutes=window_minutes)
+        window_end = now
 
     state = load_state(state_path)
     sent = 0
+    matched = 0
+
+    if not mode["dry_run"]:
+        user_key = env_required("PUSHOVER_USER_KEY")
+        app_token = env_required("PUSHOVER_APP_TOKEN")
+        if not user_key or not app_token:
+            return 2
+    else:
+        user_key = ""
+        app_token = ""
 
     for reminder in reminders:
         if not isinstance(reminder, dict):
@@ -54,29 +67,64 @@ def main() -> int:
             continue
 
         reminder_id = reminder.get("id") or derive_id(reminder)
-        due_at = compute_due_at(reminder, tz, now)
-        if due_at is None:
-            continue
-        if due_at > now or due_at < window_start:
-            continue
+        due_ats = compute_due_ats(reminder, tz, now)
+        for due_at in due_ats:
+            if due_at > window_end or due_at < window_start:
+                continue
 
-        state_key = reminder_state_key(reminder_id, reminder, due_at)
-        if state.get(state_key):
-            continue
+            state_key = reminder_state_key(reminder_id, reminder, due_at)
+            if state.get(state_key):
+                continue
 
-        send_pushover(
-            app_token=app_token,
-            user_key=user_key,
-            title=str(reminder.get("title") or reminder.get("name") or "Denise Recovery Reminder"),
-            message=str(reminder.get("message") or ""),
-            priority=int(reminder.get("priority", 0)),
-        )
-        state[state_key] = now.isoformat(timespec="seconds")
-        sent += 1
+            matched += 1
+            if mode["dry_run"]:
+                print(format_due(reminder, due_at))
+                continue
+
+            send_pushover(
+                app_token=app_token,
+                user_key=user_key,
+                title=str(reminder.get("title") or reminder.get("name") or "Denise Recovery Reminder"),
+                message=str(reminder.get("message") or ""),
+                priority=int(reminder.get("priority", 0)),
+            )
+            state[state_key] = now.isoformat(timespec="seconds")
+            sent += 1
+
+    if mode["dry_run"]:
+        label = "Upcoming reminder(s)" if isinstance(forecast_minutes, int) else "Due reminder(s)"
+        print(f"{label}: {matched}")
+        return 0
 
     save_state(state_path, state)
     print(f"Sent {sent} reminder(s).")
     return 0
+
+
+def parse_mode(args: list[str]) -> dict[str, Any]:
+    if any(arg in ("--dry-run", "--due", "--check") for arg in args):
+        return {"dry_run": True, "forecast_minutes": None}
+    if "--forecast" in args:
+        index = args.index("--forecast")
+        minutes = 720
+        if index + 1 < len(args):
+            try:
+                minutes = int(args[index + 1])
+            except ValueError:
+                minutes = 720
+        return {"dry_run": True, "forecast_minutes": minutes}
+    return {"dry_run": False, "forecast_minutes": None}
+
+
+def compute_due_ats(reminder: dict[str, object], tz: ZoneInfo, now: datetime) -> list[datetime]:
+    reminder_type = str(reminder.get("type") or "daily").lower()
+    if reminder_type == "daily":
+        due_today = compute_due_at(reminder, tz, now)
+        if due_today is None:
+            return []
+        return [due_today, due_today + timedelta(days=1)]
+    due_once = compute_due_at(reminder, tz, now)
+    return [due_once] if due_once else []
 
 
 def env_required(name: str) -> str:
@@ -152,6 +200,11 @@ def normalize_days(value: object) -> set[str]:
         if text in DAY_NAMES:
             normalized.add(text)
     return normalized
+
+
+def format_due(reminder: dict[str, object], due_at: datetime) -> str:
+    name = str(reminder.get("name") or reminder.get("title") or reminder.get("id") or "Reminder")
+    return f"{due_at.isoformat(timespec='minutes')} | {name} | {reminder.get('id', '')}"
 
 
 def send_pushover(*, app_token: str, user_key: str, title: str, message: str, priority: int) -> None:

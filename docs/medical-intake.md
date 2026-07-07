@@ -16,8 +16,9 @@ Source of truth for the Denise recovery workflow:
 - Caregiver: Brent Soper
 - Home equipment includes a walker, shower seat, bidet seats, and Pulsar Flow cold therapy
 - Sleep window for reminders: 10:00 PM to 6:00 AM
-- Incentive spirometer should be used several times while awake
-- Scheduled log-health checks should run every 15 minutes and trigger a restart/alert if the reminder logs show a real failure.
+- Temporary exception: ignore the 10:00 PM reminder cutoff until Wednesday morning.
+- Incentive spirometer should be reminded twice per hour while awake; overnight reminders are active during the temporary exception.
+- Scheduled log-health checks run daily with Pushover notification disabled by default. Use the summary file for status unless a human asks for a manual check.
 
 ## Medication rules captured from discharge notes
 
@@ -37,8 +38,8 @@ Source of truth for the Denise recovery workflow:
 - Cephalexin: scheduled
 - Journavx: loading dose tomorrow morning, then 12-hour follow-up timing
 - Oxycodone: PRN, timer starts from the logged dose
-- Tramadol: PRN
-- Ondansetron: PRN
+- Tramadol: PRN, timer starts from the logged dose
+- Ondansetron: PRN, dissolves on the tongue; next available reminder should be phrased as optional if nausea returns
 - Senokot: PRN / constipation support
 
 ## Open items still needing exact transcription

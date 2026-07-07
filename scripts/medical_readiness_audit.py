@@ -7,6 +7,18 @@ from pathlib import Path
 
 
 REQUIRED_SPIROMETER_TIMES = {
+    "00:15",
+    "00:45",
+    "01:15",
+    "01:45",
+    "02:15",
+    "02:45",
+    "03:15",
+    "03:45",
+    "04:15",
+    "04:45",
+    "05:15",
+    "05:45",
     "06:15",
     "06:45",
     "07:15",
@@ -36,6 +48,13 @@ REQUIRED_SPIROMETER_TIMES = {
     "19:15",
     "19:45",
     "20:15",
+    "20:45",
+    "21:15",
+    "21:45",
+    "22:15",
+    "22:45",
+    "23:15",
+    "23:45",
 }
 REQUIRED_SLEEP_WINDOW = {"start": "22:00", "end": "06:00"}
 REQUIRED_MED_IDS = {
@@ -58,6 +77,20 @@ REQUIRED_MED_IDS = {
 REQUIRED_PRN_IDS = {
     "oxy-next-dose-0258",
     "oxy-overdue-2049",
+    "tramadol-next-dose-0220-07072026",
+    "ondansetron-next-window-0600-07072026",
+}
+REQUIRED_OVERNIGHT_IDS = {
+    "spirometer-catchup-2250-07062026",
+    "tylenol-next-dose-0200-07072026",
+    "vitals-check-2300-07062026",
+    "vitals-check-0000-07072026",
+    "vitals-check-0100-07072026",
+    "vitals-check-0200-07072026",
+    "vitals-check-0300-07072026",
+    "vitals-check-0400-07072026",
+    "vitals-check-0500-07072026",
+    "vitals-check-0600-07072026",
 }
 
 
@@ -86,6 +119,7 @@ def main() -> int:
         row.get("time")
         for row in reminder_rows
         if isinstance(row, dict) and "spirometer" in str(row.get("id", "")).lower()
+        and row.get("type") == "daily"
     }
     if spirometer_times != REQUIRED_SPIROMETER_TIMES:
         return fail(f"spirometer reminder times mismatch: {sorted(spirometer_times)}")
@@ -98,12 +132,17 @@ def main() -> int:
     if missing_prn:
         return fail(f"missing required PRN reminders: {missing_prn}")
 
+    missing_overnight = sorted(i for i in REQUIRED_OVERNIGHT_IDS if i not in reminder_by_id)
+    if missing_overnight:
+        return fail(f"missing required overnight reminders: {missing_overnight}")
+
     if not intake_path.exists():
         return fail("missing medical intake notes")
     intake_text = intake_path.read_text(encoding="utf-8")
     required_intake_phrases = [
         "Google Sheet: `Denise Knee Recovery Tracker`",
         "Sleep window for reminders: 10:00 PM to 6:00 AM",
+        "Temporary exception: ignore the 10:00 PM reminder cutoff until Wednesday morning",
         "Dr Knees",
         "backup nurse",
     ]

@@ -64,6 +64,22 @@
       "category": "movement"
     },
     {
+      "id": "spirometer-1515",
+      "name": "Incentive spirometer",
+      "type": "daily",
+      "time": "15:15",
+      "message": "Use the incentive spirometer. For twice-per-hour schedules, create explicit :15 and :45 entries for the active window.",
+      "category": "recovery"
+    },
+    {
+      "id": "spirometer-1545",
+      "name": "Incentive spirometer",
+      "type": "daily",
+      "time": "15:45",
+      "message": "Use the incentive spirometer. Keep private patient-specific exceptions in data/reminders.json on the host.",
+      "category": "recovery"
+    },
+    {
       "id": "afternoon-exercises",
       "name": "Afternoon exercises",
       "type": "daily",
