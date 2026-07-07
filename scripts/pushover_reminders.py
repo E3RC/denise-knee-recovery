@@ -99,9 +99,71 @@ def main() -> int:
         print(f"{label}: {matched}")
         return 0
 
+    sent += check_medication_timers(user_key, app_token, state, state_path, tz, window_start, window_end, public_base_url)
+
     save_state(state_path, state)
     print(f"Sent {sent} reminder(s).")
     return 0
+
+
+def check_medication_timers(user_key: str, app_token: str, state: dict, state_path: Path, tz: ZoneInfo, window_start: datetime, window_end: datetime, public_base_url: str) -> int:
+    import sqlite3
+    from pathlib import Path as P
+
+    db_path = P(os.environ.get("DB_PATH", "data/recovery.sqlite"))
+    if not db_path.exists():
+        return 0
+
+    try:
+        conn = sqlite3.connect(str(db_path))
+        row = conn.execute("SELECT payload FROM app_state WHERE key=?", ("dashboard-state",)).fetchone()
+        conn.close()
+        if not row:
+            return 0
+        dashboard = json.loads(row[0])
+    except Exception:
+        return 0
+
+    meds = dashboard.get("medicationTemplates", [])
+    if not isinstance(meds, list):
+        return 0
+
+    sent = 0
+    for med in meds:
+        next_due_str = med.get("nextDueAt", "")
+        if not next_due_str:
+            continue
+        try:
+            next_due = datetime.fromisoformat(next_due_str)
+        except (ValueError, TypeError):
+            continue
+
+        if next_due > window_end or next_due < window_start:
+            continue
+
+        med_name = med.get("name", "Medication")
+        med_key = "med-timer-" + med_name.lower().replace(" ", "-").replace("(", "").replace(")", "")
+        state_key = f"{med_key}|{next_due_str[:16]}"
+        if state.get(state_key):
+            continue
+
+        dose = med.get("dose", "")
+        title = f"Medication due: {med_name}"
+        message = f"{med_name} ({dose}) is due now. Last given: {med.get('lastGivenAt', 'not recorded')[:16]}. Log it on the dashboard if taken."
+        send_pushover(
+            app_token=app_token,
+            user_key=user_key,
+            title=title,
+            message=message,
+            priority=1,
+            url=resolve_url("/dashboard/meds/", public_base_url),
+            url_title="Open meds page",
+        )
+        state[state_key] = datetime.now(tz).isoformat(timespec="seconds")
+        sent += 1
+
+    save_state(state_path, state)
+    return sent
 
 
 def parse_mode(args: list[str]) -> dict[str, Any]:
