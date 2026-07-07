@@ -10,5 +10,7 @@ services:
       DB_PATH: /app/data/recovery.sqlite
       ADMIN_TOKEN: ${ADMIN_TOKEN:-}
       CAREGIVER_PIN: ${CAREGIVER_PIN:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-chat}
     volumes:
       - ./data:/app/data
