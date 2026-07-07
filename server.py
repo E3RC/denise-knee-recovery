@@ -13,6 +13,8 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote, urlparse
+import urllib.request
+import urllib.error
 
 
 ROOT = Path(__file__).resolve().parent
@@ -25,6 +27,8 @@ MAX_BODY_BYTES = 1_000_000
 STATE_KEY = "dashboard-state"
 ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "").strip()
 CAREGIVER_PIN = os.environ.get("CAREGIVER_PIN", "").strip()
+DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "").strip()
+DEEPSEEK_MODEL = os.environ.get("DEEPSEEK_MODEL", "deepseek-chat").strip()
 SESSION_COOKIE_NAME = "caregiver_session"
 SESSION_TOKEN = secrets.token_urlsafe(32) if CAREGIVER_PIN else ""
 
@@ -133,7 +137,194 @@ def is_private_path(pathname: str) -> bool:
     return False
 
 
-class Handler(BaseHTTPRequestHandler):
+def parse_caregiver_command(text: str, current_state: dict | None) -> dict:
+    if not DEEPSEEK_API_KEY:
+        return {"error": "AI assistant is not configured"}
+
+    med_names = []
+    if current_state and isinstance(current_state.get("medicationTemplates"), list):
+        for m in current_state["medicationTemplates"]:
+            name = m.get("name", "")
+            dose = m.get("dose", "")
+            label = f"{name} ({dose})" if dose else name
+            med_names.append(label)
+
+    med_list = "\n".join(f"- {n}" for n in med_names) if med_names else "(none)"
+
+    system_prompt = f"""You are a caregiver assistant for Denise's knee replacement recovery (surgery 2026-07-06).
+Your job: parse a caregiver's natural language note into structured JSON actions.
+
+PATIENT: Denise, total knee replacement, surgery 2026-07-06, caregiver: Brent.
+CURRENT MEDICATIONS:
+{med_list}
+
+Output ONLY valid JSON with this structure:
+{{"actions": [...], "summary": "brief confirmation"}}
+
+Each action must have a "type" field. Supported types:
+
+- log_medication: {{"type":"log_medication","medication_name":"exact name from list","given_at":"ISO8601","notes":"optional"}}
+- log_nausea_med: {{"type":"log_nausea_med","given_at":"ISO8601","notes":"optional"}}
+- log_pain_score: {{"type":"log_pain_score","value":0-10,"given_at":"ISO8601"}}
+- log_vital: {{"type":"log_vital","vital_type":"temperature|blood_pressure|heart_rate|nausea_level","value":"string","given_at":"ISO8601"}}
+- log_walk: {{"type":"log_walk","distance":"string","duration_minutes":0,"given_at":"ISO8601"}}
+- log_ice: {{"type":"log_ice","duration_minutes":0,"given_at":"ISO8601"}}
+- log_exercise: {{"type":"log_exercise","description":"string","given_at":"ISO8601"}}
+- log_hydration: {{"type":"log_hydration","amount":"string","given_at":"ISO8601"}}
+- log_meal: {{"type":"log_meal","description":"string","given_at":"ISO8601"}}
+- log_bowel: {{"type":"log_bowel","status":"string","given_at":"ISO8601"}}
+- quick_check: {{"type":"quick_check","check_id":"hydration-check|walk-check|ice-check|meal-check|exercise-check|med-check|incision-check|rest-check|bowel-check","given_at":"ISO8601"}}
+- log_note: {{"type":"log_note","text":"string","given_at":"ISO8601"}}
+
+RULES:
+- Use today's date (2026-07-07) when no date is specified, only time is given.
+- Timezone is America/Indiana/Indianapolis (EDT, UTC-4).
+- For medications, match the medication_name EXACTLY to the list above.
+- If someone says they took a med, set given_at to that time. For scheduled meds, calculate nextDueAt as given_at + intervalHours.
+- If the medication isn't in the list but is clearly an OTC nausea/digestive med, use log_nausea_med.
+- Keep summary to one sentence confirming what was done.
+- If text is vague, ask for clarification in the summary."""
+
+    payload = {
+        "model": DEEPSEEK_MODEL,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": text},
+        ],
+        "temperature": 0.1,
+        "max_tokens": 600,
+    }
+
+    try:
+        req = urllib.request.Request(
+            "https://api.deepseek.com/v1/chat/completions",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
+            },
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            body = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        return {"error": f"DeepSeek API error: {exc.code}"}
+    except Exception as exc:
+        return {"error": f"AI request failed: {exc}"}
+
+    try:
+        content = body["choices"][0]["message"]["content"]
+        content = content.strip()
+        if content.startswith("```"):
+            content = content.split("\n", 1)[1]
+            if content.endswith("```"):
+                content = content[:-3]
+            content = content.strip()
+            if content.startswith("json"):
+                content = content[4:].strip()
+        result = json.loads(content)
+    except (KeyError, json.JSONDecodeError, IndexError):
+        return {"error": "AI returned invalid response", "raw": body}
+
+    return result
+
+
+def apply_command_actions(state: dict, actions: list[dict]) -> dict:
+    from datetime import timedelta
+
+    tz_edt = timezone(timedelta(hours=-4))
+    changes = []
+    state = json.loads(json.dumps(state))
+
+    med_templates = state.get("medicationTemplates", [])
+    med_index = {m["name"].lower(): m for m in med_templates if m.get("name")}
+
+    for action in actions:
+        action_type = action.get("type", "")
+        given_at = action.get("given_at", now_iso())
+        changes.append(action_type)
+
+        if action_type == "log_medication":
+            med_name = action.get("medication_name", "")
+            key = med_name.lower()
+            for k, tmpl in med_index.items():
+                if key in k or k in key:
+                    tmpl["lastGivenAt"] = given_at
+                    tmpl["givenTime"] = given_at
+                    tmpl["dispensed"] = True
+                    tmpl["givenBy"] = "Caregiver"
+                    if tmpl.get("notes"):
+                        tmpl["notes"] += f" | AI-logged: {given_at}"
+                    else:
+                        tmpl["notes"] = f"AI-logged: {given_at}"
+                    interval = int(tmpl.get("intervalHours", 0) or 0)
+                    if interval > 0:
+                        next_dt = datetime.fromisoformat(given_at) + timedelta(hours=interval)
+                        tmpl["nextDueAt"] = next_dt.isoformat()
+                    break
+            if action.get("notes"):
+                pass
+
+        elif action_type == "log_nausea_med":
+            for tmpl in med_templates:
+                name_lower = tmpl.get("name", "").lower()
+                if "nausea" in name_lower or "zofran" in name_lower or "ondansetron" in name_lower:
+                    tmpl["lastGivenAt"] = given_at
+                    tmpl["givenTime"] = given_at
+                    tmpl["dispensed"] = True
+                    tmpl["notes"] = (tmpl.get("notes", "") + f" | AI-logged: {given_at}").strip()
+                    interval = int(tmpl.get("intervalHours", 0) or 0)
+                    if interval > 0:
+                        next_dt = datetime.fromisoformat(given_at) + timedelta(hours=interval)
+                        tmpl["nextDueAt"] = next_dt.isoformat()
+                    break
+
+        elif action_type == "log_pain_score":
+            score = action.get("value", "")
+            note = f"Pain score: {score}/10"
+            if action.get("notes"):
+                note += f" ({action['notes']})"
+            activity = state.setdefault("activityLog", [])
+            activity.append({"type": "Pain score", "text": note, "at": given_at})
+
+        elif action_type in ("log_walk", "log_ice", "log_exercise", "log_hydration", "log_meal", "log_bowel"):
+            type_label = {
+                "log_walk": "Walk", "log_ice": "Cold therapy",
+                "log_exercise": "Exercise", "log_hydration": "Hydration",
+                "log_meal": "Meal", "log_bowel": "Bowel"
+            }.get(action_type, "Activity")
+            detail_parts = []
+            for k in ("distance", "duration_minutes", "amount", "description", "status"):
+                if action.get(k):
+                    detail_parts.append(str(action[k]))
+            text = " | ".join(detail_parts) if detail_parts else action_type
+            activity = state.setdefault("activityLog", [])
+            activity.append({"type": type_label, "text": text, "at": given_at})
+
+        elif action_type == "quick_check":
+            check_id = action.get("check_id", "")
+            checks = state.setdefault("quickChecks", [])
+            checks.append({"id": check_id, "at": given_at})
+
+        elif action_type == "log_note":
+            notes_list = state.setdefault("notes", [])
+            notes_list.append({
+                "type": "AI Note",
+                "text": action.get("text", ""),
+                "at": given_at,
+            })
+
+        elif action_type == "log_vital":
+            vital_type = action.get("vital_type", "")
+            value = action.get("value", "")
+            activity = state.setdefault("activityLog", [])
+            activity.append({
+                "type": f"Vital: {vital_type}",
+                "text": str(value),
+                "at": given_at,
+            })
+
+    return state
     server_version = "DeniseRecovery/1.0"
 
     def do_GET(self) -> None:  # noqa: N802
@@ -184,6 +375,13 @@ class Handler(BaseHTTPRequestHandler):
         if pathname == "/api/caregiver-logout":
             self._clear_caregiver_session()
             self._json(HTTPStatus.OK, {"ok": True})
+            return
+
+        if pathname == "/api/caregiver/command":
+            if not self._has_caregiver_access():
+                self._json(HTTPStatus.UNAUTHORIZED, {"error": "caregiver sign-in required"})
+                return
+            self._handle_caregiver_command()
             return
 
         if pathname == "/api/admin/update":
@@ -242,6 +440,27 @@ class Handler(BaseHTTPRequestHandler):
     def _clear_caregiver_session(self) -> None:
         cookie = f"{SESSION_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0"
         self._json(HTTPStatus.OK, {"ok": True}, extra_headers={"Set-Cookie": cookie})
+
+    def _handle_caregiver_command(self) -> None:
+        payload = self._read_json_body()
+        if payload is None:
+            return
+        text = str(payload.get("text", "")).strip() if isinstance(payload, dict) else ""
+        if not text:
+            self._json(HTTPStatus.BAD_REQUEST, {"error": "text is required"})
+            return
+        if not DEEPSEEK_API_KEY:
+            self._json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "AI assistant is not configured"})
+            return
+
+        current_state = load_state()
+        result = parse_caregiver_command(text, current_state)
+
+        if "error" in result:
+            self._json(HTTPStatus.BAD_GATEWAY, result)
+            return
+
+        self._json(HTTPStatus.OK, result)
 
     def _handle_admin_update(self) -> None:
         payload = self._read_json_body()

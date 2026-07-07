@@ -195,6 +195,20 @@
       </section>
     </section>
   </main>
+
+  <div class="ai-confirm" id="ai-confirm" style="display:none">
+    <div class="summary" id="ai-summary"></div>
+    <div class="actions-row">
+      <button class="btn-apply" id="ai-apply">Apply</button>
+      <button class="btn-cancel" id="ai-cancel">Cancel</button>
+    </div>
+  </div>
+  <div class="ai-bar">
+    <input type="text" id="ai-input" placeholder="Say or type what happened..." autocomplete="off" />
+    <button id="ai-mic" class="ghost-ai" title="Voice input" type="button">&#127908;</button>
+    <button id="ai-send" title="Send" type="button">&#8593;</button>
+  </div>
+
   <script src="/dashboard/dashboard.js"></script>
 </body>
 </html>

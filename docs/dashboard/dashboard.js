@@ -1221,6 +1221,199 @@ if ('serviceWorker' in navigator) {
   });
 }
 
+// ---- AI Caregiver Assistant ----
+(function() {
+  const aiInput = document.getElementById('ai-input');
+  const aiSend = document.getElementById('ai-send');
+  const aiMic = document.getElementById('ai-mic');
+  const aiConfirm = document.getElementById('ai-confirm');
+  const aiSummary = document.getElementById('ai-summary');
+  const aiApply = document.getElementById('ai-apply');
+  const aiCancel = document.getElementById('ai-cancel');
+
+  let pendingActions = null;
+  let listening = false;
+  let recognition = null;
+
+  if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SR();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+    recognition.onresult = function(event) {
+      const text = event.results[0][0].transcript;
+      aiInput.value = text;
+      listening = false;
+      aiMic.classList.remove('recording');
+      aiMic.style.color = '';
+      sendCommand(text);
+    };
+    recognition.onerror = function() {
+      listening = false;
+      aiMic.classList.remove('recording');
+      aiMic.style.color = '';
+    };
+    recognition.onend = function() {
+      listening = false;
+      aiMic.classList.remove('recording');
+      aiMic.style.color = '';
+    };
+  } else {
+    aiMic.style.display = 'none';
+  }
+
+  function hideConfirm() {
+    aiConfirm.style.display = 'none';
+    pendingActions = null;
+  }
+
+  async function sendCommand(text) {
+    if (!text.trim()) return;
+    aiSend.disabled = true;
+    aiMic.disabled = true;
+    aiInput.placeholder = 'Thinking...';
+    try {
+      const resp = await fetch('/api/caregiver/command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: text.trim() })
+      });
+      const data = await resp.json();
+      if (data.actions && data.actions.length > 0) {
+        pendingActions = data.actions;
+        aiSummary.textContent = data.summary || 'Apply these changes?';
+        aiConfirm.style.display = 'block';
+      } else if (data.error) {
+        aiSummary.textContent = 'Sorry: ' + data.error;
+        aiConfirm.style.display = 'block';
+        aiApply.style.display = 'none';
+      }
+    } catch (e) {
+      aiSummary.textContent = 'AI assistant unavailable.';
+      aiConfirm.style.display = 'block';
+      aiApply.style.display = 'none';
+    } finally {
+      aiSend.disabled = false;
+      aiMic.disabled = false;
+      aiInput.placeholder = 'Say or type what happened...';
+      aiInput.value = '';
+    }
+  }
+
+  function applyActions(actions) {
+    var tzOffset = state.surgeryDate ? new Date(state.surgeryDate + 'T12:00:00').getTimezoneOffset() : 240;
+    var localNow = new Date();
+    var meds = state.medicationTemplates || [];
+    var medIndex = {};
+    meds.forEach(function(m) { if (m.name) medIndex[m.name.toLowerCase()] = m; });
+
+    actions.forEach(function(action) {
+      var at = action.given_at || localNow.toISOString();
+
+      if (action.type === 'log_medication') {
+        var name = (action.medication_name || '').toLowerCase();
+        var matched = null;
+        for (var k in medIndex) {
+          if (name.indexOf(k) !== -1 || k.indexOf(name) !== -1) { matched = medIndex[k]; break; }
+        }
+        if (matched) {
+          matched.lastGivenAt = at;
+          matched.givenTime = at;
+          matched.dispensed = true;
+          matched.givenBy = 'Caregiver';
+          matched.notes = (matched.notes || '') + ' | AI-logged: ' + at;
+          var interval = parseInt(matched.intervalHours || '0', 10);
+          if (interval > 0) {
+            var next = new Date(at);
+            next.setHours(next.getHours() + interval);
+            matched.nextDueAt = next.toISOString();
+          }
+        }
+      }
+
+      if (action.type === 'log_nausea_med') {
+        meds.forEach(function(m) {
+          var nl = (m.name || '').toLowerCase();
+          if (nl.indexOf('nausea') !== -1 || nl.indexOf('zofran') !== -1 || nl.indexOf('ondansetron') !== -1) {
+            m.lastGivenAt = at;
+            m.givenTime = at;
+            m.dispensed = true;
+            m.notes = (m.notes || '') + ' | AI-logged (nausea): ' + at;
+            var interval = parseInt(m.intervalHours || '0', 10);
+            if (interval > 0) {
+              var next = new Date(at);
+              next.setHours(next.getHours() + interval);
+              m.nextDueAt = next.toISOString();
+            }
+          }
+        });
+      }
+
+      if (action.type === 'log_pain_score') {
+        var note = 'Pain score: ' + (action.value || '?') + '/10';
+        if (action.notes) note += ' (' + action.notes + ')';
+        state.activityLog = state.activityLog || [];
+        state.activityLog.push({ type: 'Pain score', text: note, at: at });
+      }
+
+      if (['log_walk','log_ice','log_exercise','log_hydration','log_meal','log_bowel'].indexOf(action.type) !== -1) {
+        var labels = { log_walk:'Walk', log_ice:'Cold therapy', log_exercise:'Exercise', log_hydration:'Hydration', log_meal:'Meal', log_bowel:'Bowel' };
+        var parts = [];
+        if (action.distance) parts.push(action.distance);
+        if (action.duration_minutes) parts.push(action.duration_minutes + ' min');
+        if (action.amount) parts.push(action.amount);
+        if (action.description) parts.push(action.description);
+        if (action.status) parts.push(action.status);
+        state.activityLog = state.activityLog || [];
+        state.activityLog.push({ type: labels[action.type] || 'Activity', text: parts.join(' | ') || action.type, at: at });
+      }
+
+      if (action.type === 'quick_check') {
+        state.quickChecks = state.quickChecks || [];
+        state.quickChecks.push({ id: action.check_id || '', at: at });
+      }
+
+      if (action.type === 'log_note') {
+        state.notes = state.notes || [];
+        state.notes.push({ type: 'AI Note', text: action.text || '', at: at });
+      }
+
+      if (action.type === 'log_vital') {
+        state.activityLog = state.activityLog || [];
+        state.activityLog.push({ type: 'Vital: ' + (action.vital_type || ''), text: String(action.value || ''), at: at });
+      }
+    });
+  }
+
+  aiApply.addEventListener('click', function() {
+    if (!pendingActions) return;
+    applyActions(pendingActions);
+    saveState();
+    render();
+    hideConfirm();
+  });
+
+  aiCancel.addEventListener('click', hideConfirm);
+
+  aiSend.addEventListener('click', function() {
+    sendCommand(aiInput.value);
+  });
+
+  aiInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') sendCommand(aiInput.value);
+  });
+
+  aiMic.addEventListener('click', function() {
+    if (!recognition) return;
+    if (listening) { recognition.stop(); return; }
+    listening = true;
+    aiMic.classList.add('recording');
+    aiMic.style.color = '#e53e3e';
+    recognition.start();
+  });
+})();
+
 state = loadState();
 render();
 void syncRemoteState();
