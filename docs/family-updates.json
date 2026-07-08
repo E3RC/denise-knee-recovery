@@ -1,6 +1,18 @@
 {
-  "lastUpdated": "2026-07-07T17:00:00-04:00",
+  "lastUpdated": "2026-07-15T12:00:00-04:00",
   "updates": [
+    {
+      "date": "2026-07-15",
+      "dayNumber": 9,
+      "headline": "First PT appointment — went great",
+      "publicUpdate": "Denise had her first physical therapy session today. The ace bandage was removed, a compression tube was fitted, and exercises are being sent to her phone. Recovery is on track.",
+      "painTrend": "Well managed",
+      "mobility": "Walking with walker, PT exercises starting",
+      "ptMilestone": "First PT session complete with Fred L.",
+      "mood": "Positive",
+      "needsVisitors": "Please text Brent before visiting.",
+      "showOnWeb": "YES"
+    },
     {
       "date": "2026-07-07",
       "dayNumber": 1,
