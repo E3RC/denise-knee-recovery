@@ -7,7 +7,7 @@ import os
 import secrets
 import sqlite3
 import tempfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from http import HTTPStatus
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -153,10 +153,11 @@ def parse_caregiver_command(text: str, current_state: dict | None) -> dict:
 
     med_list = "\n".join(f"- {n}" for n in med_names) if med_names else "(none)"
 
+    now_edt = datetime.now(timezone(timedelta(hours=-4)))
     system_prompt = f"""You are a caregiver assistant for Denise's knee replacement recovery (surgery 2026-07-06).
 Your job: parse a caregiver's natural language note into structured JSON actions.
 
-Current time: {datetime.now(timezone.utc).isoformat()}
+Current time: {now_edt.isoformat()} (Eastern, UTC-4)
 
 PATIENT: Denise, total knee replacement, surgery 2026-07-06, caregiver: Brent.
 CURRENT MEDICATIONS:
