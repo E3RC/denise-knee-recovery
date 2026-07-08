@@ -25,6 +25,7 @@ function init() {
   wireQuickLogs();
   wirePain();
   wireLogout();
+  wireCheckin();
 }
 
 function loadState() {
@@ -501,6 +502,129 @@ function wireAI() {
     aiMic.style.color = '#e53e3e';
     recognition.start();
   });
+}
+
+// ---- Morning Check-in ----
+function wireCheckin() {
+  var btnCard = document.getElementById('checkin-btn-card');
+  var checkinCard = document.getElementById('checkin-card');
+  var startBtn = document.getElementById('checkin-start');
+  var closeBtn = document.getElementById('checkin-close');
+  var submitBtn = document.getElementById('checkin-submit');
+  var painSlider = document.getElementById('checkin-pain-slider');
+  var medsList = document.getElementById('checkin-meds');
+  var notesInput = document.getElementById('checkin-notes');
+
+  if (!startBtn || !checkinCard) return;
+
+  function getMorningMeds() {
+    var meds = state.medicationTemplates || [];
+    return meds.filter(function(m) {
+      var sched = m.scheduled || '';
+      var stopped = (m.stopRule || '') === 'Completed';
+      if (stopped) return false;
+      if (sched === 'PRN') return false;
+      var name = (m.name || '').toLowerCase();
+      if (name.indexOf('pregabalin') !== -1 || name.indexOf('tranexamic') !== -1) return false;
+      return true;
+    });
+  }
+
+  function renderCheckinMeds() {
+    var meds = getMorningMeds();
+    medsList.innerHTML = meds.map(function(m, i) {
+      var name = m.name || '';
+      var dose = m.dose || '';
+      return '<div class="checkin-med-item" id="checkin-med-' + i + '">' +
+        '<div><span class="med-label">' + esc(name) + '</span>' +
+        (dose ? '<span class="med-dose">' + esc(dose) + '</span>' : '') + '</div>' +
+        '<div class="med-actions">' +
+        '<button class="btn-skip" data-checkin-skip="' + i + '">Skip</button>' +
+        '<button class="btn-take" data-checkin-take="' + i + '">Taken</button>' +
+        '</div></div>';
+    }).join('');
+
+    medsList.querySelectorAll('[data-checkin-take]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var idx = parseInt(btn.dataset.checkinTake, 10);
+        var item = document.getElementById('checkin-med-' + idx);
+        if (item) item.classList.add('taken');
+      });
+    });
+    medsList.querySelectorAll('[data-checkin-skip]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var idx = parseInt(btn.dataset.checkinSkip, 10);
+        var item = document.getElementById('checkin-med-' + idx);
+        if (item) item.classList.remove('taken');
+      });
+    });
+  }
+
+  function openCheckin() {
+    renderCheckinMeds();
+    btnCard.style.display = 'none';
+    checkinCard.style.display = 'block';
+    if (painSlider) painSlider.value = 0;
+    if (notesInput) notesInput.value = '';
+    checkinCard.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function closeCheckin() {
+    checkinCard.style.display = 'none';
+    btnCard.style.display = 'block';
+  }
+
+  function submitCheckin() {
+    var painVal = painSlider ? parseInt(painSlider.value, 10) : 0;
+    var notes = notesInput ? notesInput.value.trim() : '';
+    var meds = getMorningMeds();
+    var now = new Date().toISOString();
+
+    state.activityLog = state.activityLog || [];
+
+    if (painVal > 0) {
+      state.activityLog.push({ type: 'Pain score', text: 'Pain score: ' + painVal + '/10', at: now });
+    }
+    if (notes) {
+      state.activityLog.push({ type: 'Morning note', text: notes, at: now });
+    }
+
+    var medIndex = {};
+    (state.medicationTemplates || []).forEach(function(m) {
+      if (m.name) medIndex[m.name.toLowerCase()] = m;
+    });
+
+    meds.forEach(function(m, i) {
+      var item = document.getElementById('checkin-med-' + i);
+      if (item && item.classList.contains('taken')) {
+        var nl = (m.name || '').toLowerCase();
+        var tmpl = medIndex[nl];
+        if (tmpl) {
+          tmpl.lastGivenAt = now;
+          tmpl.givenTime = now;
+          tmpl.dispensed = true;
+          tmpl.givenBy = 'Patient (check-in)';
+          var interval = parseInt(tmpl.intervalHours || '0', 10);
+          if (interval > 0) {
+            var next = new Date(now);
+            next.setHours(next.getHours() + interval);
+            tmpl.nextDueAt = next.toISOString();
+          }
+          tmpl.notes = (tmpl.notes || '') + ' | Taken via morning check-in.';
+        }
+      }
+    });
+
+    saveState();
+    persistRemoteState();
+    render();
+    closeCheckin();
+    toast('Morning check-in logged');
+  }
+
+  startBtn.addEventListener('click', openCheckin);
+  closeBtn.addEventListener('click', closeCheckin);
+  submitBtn.addEventListener('click', submitCheckin);
 }
 
 init();
