@@ -154,6 +154,8 @@ def parse_caregiver_command(text: str, current_state: dict | None) -> dict:
     system_prompt = f"""You are a caregiver assistant for Denise's knee replacement recovery (surgery 2026-07-06).
 Your job: parse a caregiver's natural language note into structured JSON actions.
 
+Current time: {datetime.now(timezone.utc).isoformat()}
+
 PATIENT: Denise, total knee replacement, surgery 2026-07-06, caregiver: Brent.
 CURRENT MEDICATIONS:
 {med_list}
@@ -177,10 +179,11 @@ Each action must have a "type" field. Supported types:
 - log_note: {{"type":"log_note","text":"string","given_at":"ISO8601"}}
 
 RULES:
-- Use today's date (2026-07-07) when no date is specified, only time is given.
+- CRITICAL: When NO specific time is mentioned (e.g. \"I took Tylenol\", \"pain is 3\", \"did a walk\"), set given_at to the CURRENT time listed above. NEVER use midnight (00:00:00) unless the user explicitly says midnight.
+- When the user DOES specify a time (e.g. \"at 4:30 PM\", \"around 2pm\"), use that time on today's date (2026-07-07).
 - Timezone is America/Indiana/Indianapolis (EDT, UTC-4).
 - For medications, match the medication_name EXACTLY to the list above.
-- If someone says they took a med, set given_at to that time. For scheduled meds, calculate nextDueAt as given_at + intervalHours.
+- For scheduled meds, calculate nextDueAt as given_at + intervalHours.
 - If the medication isn't in the list but is clearly an OTC nausea/digestive med, use log_nausea_med.
 - Keep summary to one sentence confirming what was done.
 - If text is vague, ask for clarification in the summary."""
