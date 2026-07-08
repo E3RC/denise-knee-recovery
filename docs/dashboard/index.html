@@ -41,6 +41,32 @@
     </section>
 
     <section class="grid">
+      <!-- MORNING CHECK-IN -->
+      <section class="card wide checkin-card" id="checkin-card" style="display:none">
+        <div class="section-head">
+          <h2>Morning Check-in</h2>
+          <button id="checkin-close" class="ghost" type="button">Cancel</button>
+        </div>
+        <div class="checkin-body">
+          <div class="checkin-pain">
+            <label>Pain level</label>
+            <div class="pain-slider-wrap">
+              <input type="range" id="checkin-pain-slider" min="0" max="10" value="0" step="1" />
+              <div class="pain-labels"><span>0</span><span>5</span><span>10</span></div>
+            </div>
+          </div>
+          <div id="checkin-meds" class="checkin-meds"></div>
+          <div class="checkin-notes">
+            <input type="text" id="checkin-notes" placeholder="Any notes for this morning?" />
+          </div>
+          <button id="checkin-submit" class="primary checkin-submit">Log check-in</button>
+        </div>
+      </section>
+
+      <section class="card wide" id="checkin-btn-card">
+        <button id="checkin-start" class="primary checkin-start-btn">&#9728; Morning Check-in</button>
+      </section>
+
       <!-- COMMAND CENTER - always visible first -->
       <section class="card wide cmd-card">
         <div class="ai-bar-inline">

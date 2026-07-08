@@ -1504,3 +1504,114 @@ if ('serviceWorker' in navigator) {
 state = loadState();
 render();
 void syncRemoteState();
+
+// ---- Morning Check-in ----
+(function() {
+  var btnCard = document.getElementById('checkin-btn-card');
+  var checkinCard = document.getElementById('checkin-card');
+  var startBtn = document.getElementById('checkin-start');
+  var closeBtn = document.getElementById('checkin-close');
+  var submitBtn = document.getElementById('checkin-submit');
+  var painSlider = document.getElementById('checkin-pain-slider');
+  var medsList = document.getElementById('checkin-meds');
+  var notesInput = document.getElementById('checkin-notes');
+
+  if (!startBtn || !checkinCard) return;
+
+  function getMorningMeds() {
+    var meds = state.medicationTemplates || [];
+    return meds.filter(function(m) {
+      if (m.scheduled === 'PRN') return false;
+      if (m.stopRule === 'Completed') return false;
+      var name = (m.name || '').toLowerCase();
+      if (name.indexOf('pregabalin') !== -1 || name.indexOf('tranexamic') !== -1) return false;
+      return true;
+    });
+  }
+
+  function renderCheckinMeds() {
+    var meds = getMorningMeds();
+    medsList.innerHTML = meds.map(function(m, i) {
+      return '<div class="checkin-med-item" id="checkin-med-' + i + '">' +
+        '<div><span class="med-label">' + escapeHtml(m.name || '') + '</span>' +
+        (m.dose ? '<span class="med-dose">' + escapeHtml(m.dose) + '</span>' : '') + '</div>' +
+        '<div class="med-actions">' +
+        '<button class="btn-skip" data-checkin-skip="' + i + '">Skip</button>' +
+        '<button class="btn-take" data-checkin-take="' + i + '">Taken</button>' +
+        '</div></div>';
+    }).join('');
+
+    medsList.querySelectorAll('[data-checkin-take]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var el = document.getElementById('checkin-med-' + btn.dataset.checkinTake);
+        if (el) el.classList.add('taken');
+      });
+    });
+    medsList.querySelectorAll('[data-checkin-skip]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var el = document.getElementById('checkin-med-' + btn.dataset.checkinSkip);
+        if (el) el.classList.remove('taken');
+      });
+    });
+  }
+
+  startBtn.addEventListener('click', function() {
+    renderCheckinMeds();
+    btnCard.style.display = 'none';
+    checkinCard.style.display = 'block';
+    if (painSlider) painSlider.value = 0;
+    if (notesInput) notesInput.value = '';
+    checkinCard.scrollIntoView({ behavior: 'smooth' });
+  });
+
+  closeBtn.addEventListener('click', function() {
+    checkinCard.style.display = 'none';
+    btnCard.style.display = 'block';
+  });
+
+  submitBtn.addEventListener('click', function() {
+    var painVal = painSlider ? parseInt(painSlider.value, 10) : 0;
+    var notes = notesInput ? notesInput.value.trim() : '';
+    var meds = getMorningMeds();
+    var now = new Date().toISOString();
+
+    state.activityLog = state.activityLog || [];
+    if (painVal > 0) {
+      state.activityLog.push({ type: 'Pain score', text: 'Pain score: ' + painVal + '/10', at: now });
+    }
+    if (notes) {
+      state.activityLog.push({ type: 'Morning note', text: notes, at: now });
+    }
+
+    var medIndex = {};
+    (state.medicationTemplates || []).forEach(function(m) {
+      if (m.name) medIndex[m.name.toLowerCase()] = m;
+    });
+
+    meds.forEach(function(m, i) {
+      var item = document.getElementById('checkin-med-' + i);
+      if (item && item.classList.contains('taken')) {
+        var tmpl = medIndex[(m.name || '').toLowerCase()];
+        if (tmpl) {
+          tmpl.lastGivenAt = now;
+          tmpl.givenTime = now;
+          tmpl.dispensed = true;
+          tmpl.givenBy = 'Caregiver (check-in)';
+          var interval = parseInt(tmpl.intervalHours || '0', 10);
+          if (interval > 0) {
+            var next = new Date(now);
+            next.setHours(next.getHours() + interval);
+            tmpl.nextDueAt = next.toISOString();
+          }
+          tmpl.notes = (tmpl.notes || '') + ' | Taken via morning check-in.';
+        }
+      }
+    });
+
+    saveState();
+    render();
+    checkinCard.style.display = 'none';
+    btnCard.style.display = 'block';
+    toast('Morning check-in logged');
+  });
+})();
