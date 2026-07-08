@@ -1055,6 +1055,14 @@ function persistAndRender() {
   render();
 }
 
+function toast(msg) {
+  var el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(function() { el.remove(); }, 1800);
+}
+
 els.contactsForm.addEventListener('input', event => {
   const target = event.target.closest('[data-contact-index][data-contact-field]');
   if (!target) return;
@@ -1160,6 +1168,8 @@ els.quickCheckGrid.addEventListener('click', event => {
   const button = event.target.closest('[data-quick-check]');
   if (!button) return;
   addOrUpdateQuickCheck(button.dataset.quickCheck);
+  var label = button.textContent || button.dataset.quickCheck;
+  toast(label.trim() + ' logged');
 });
 
 els.resetQuickChecks && els.resetQuickChecks.addEventListener('click', () => {
@@ -1468,6 +1478,7 @@ if ('serviceWorker' in navigator) {
     saveState();
     render();
     hideConfirm();
+    toast('Changes applied');
   });
 
   aiCancel.addEventListener('click', hideConfirm);

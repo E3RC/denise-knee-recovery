@@ -24,6 +24,7 @@ function init() {
   wireAI();
   wireQuickLogs();
   wirePain();
+  wireLogout();
 }
 
 function loadState() {
@@ -167,6 +168,7 @@ function wireQuickLogs() {
       saveState();
       persistRemoteState();
       render();
+      toast(label + ' logged');
     });
   });
 }
@@ -199,6 +201,7 @@ function wirePain() {
       saveState();
       persistRemoteState();
       render();
+      toast('Nausea logged');
     });
   }
 
@@ -211,8 +214,25 @@ function wirePain() {
       saveState();
       persistRemoteState();
       render();
+      toast('Temp: ' + temp + 'F');
     });
   }
+}
+
+function wireLogout() {
+  var btn = document.getElementById('logout-btn');
+  if (btn) btn.addEventListener('click', function() {
+    fetch('/api/caregiver-logout', { method: 'POST' }).catch(function(){});
+    window.location.href = '/caregiver';
+  });
+}
+
+function toast(msg) {
+  var el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(function() { el.remove(); }, 1800);
 }
 
 function logPain(val) {
@@ -221,6 +241,7 @@ function logPain(val) {
   saveState();
   persistRemoteState();
   render();
+  toast('Pain: ' + val + '/10');
 }
 
 // ---- AI Assistant ----
@@ -236,6 +257,15 @@ function wireAI() {
   var listening = false;
   var recognition = null;
 
+  function stopListening() {
+    listening = false;
+    if (aiMic) {
+      aiMic.classList.remove('recording');
+      aiMic.style.color = '';
+    }
+    aiInput.placeholder = 'Say what you did or how you feel...';
+  }
+
   if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     recognition = new SR();
@@ -244,15 +274,17 @@ function wireAI() {
     recognition.lang = 'en-US';
     recognition.onresult = function(event) {
       aiInput.value = event.results[0][0].transcript;
-      listening = false;
-      aiMic.classList.remove('recording');
-      aiMic.style.color = '';
+      stopListening();
       sendCommand(aiInput.value);
     };
-    recognition.onerror = recognition.onend = function() {
-      listening = false;
-      aiMic.classList.remove('recording');
-      aiMic.style.color = '';
+    recognition.onerror = function(e) {
+      if (e.error === 'not-allowed') {
+        aiInput.placeholder = 'Mic blocked - check browser permissions';
+      }
+      stopListening();
+    };
+    recognition.onend = function() {
+      stopListening();
     };
   } else {
     if (aiMic) aiMic.style.display = 'none';
@@ -405,6 +437,7 @@ function wireAI() {
     persistRemoteState();
     render();
     hideConfirm();
+    toast('Changes applied');
   });
 
   if (aiCancel) aiCancel.addEventListener('click', hideConfirm);
