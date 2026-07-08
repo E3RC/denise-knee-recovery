@@ -363,7 +363,7 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if is_private_path(pathname) and not self._has_caregiver_access():
-            self._redirect("/caregiver")
+            self._redirect(f"/caregiver?next={pathname}")
             return
 
         asset = resolve_static_path(pathname)
