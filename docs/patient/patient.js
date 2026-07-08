@@ -124,7 +124,11 @@ function renderNextMeds() {
         label = nextAt.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
       }
     }
-    if (m.dispensed) { cls = 'done'; label = 'Taken'; }
+    if (m.dispensed) {
+      var nextTime = m.nextDueAt ? new Date(m.nextDueAt).toLocaleTimeString([], {hour:'numeric', minute:'2-digit'}) : '';
+      label = 'Taken' + (nextTime ? ', next: ' + nextTime : '');
+      cls = 'done';
+    }
     items.push('<div class="med-timer"><span class="med-name">' + esc(m.name || '') + '</span><span class="med-due ' + cls + '">' + esc(label) + '</span></div>');
   });
   els.nextMeds.innerHTML = items.length ? items.join('') : '<p class="empty">No medications scheduled.</p>';
