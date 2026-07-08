@@ -189,6 +189,7 @@ RULES:
 - For medications, match the medication_name EXACTLY to the list above.
 - Use log_medication_done when someone says a medication is finished, done, no more pills, prescription is gone, or they took the last dose. This marks it complete and stops future reminders.
 - For scheduled meds, calculate nextDueAt as given_at + intervalHours.
+- Tylenol/Acetaminophen has a MAX of 3 doses per 24 hours regardless of the 8-hour interval. Warn in the summary if the caregiver seems to be approaching the 3x/day limit.
 - If the medication isn't in the list but is clearly an OTC nausea/digestive med, use log_nausea_med.
 - Keep summary to one sentence confirming what was done.
 - If text is vague, ask for clarification in the summary."""
