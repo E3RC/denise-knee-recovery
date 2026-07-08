@@ -168,6 +168,7 @@ Output ONLY valid JSON with this structure:
 Each action must have a "type" field. Supported types:
 
 - log_medication: {{"type":"log_medication","medication_name":"exact name from list","given_at":"ISO8601","notes":"optional"}}
+- log_medication_done: {{"type":"log_medication_done","medication_name":"exact name from list","notes":"optional"}}
 - log_nausea_med: {{"type":"log_nausea_med","given_at":"ISO8601","notes":"optional"}}
 - log_pain_score: {{"type":"log_pain_score","value":0-10,"given_at":"ISO8601"}}
 - log_vital: {{"type":"log_vital","vital_type":"temperature|blood_pressure|heart_rate|nausea_level","value":"string","given_at":"ISO8601"}}
@@ -185,6 +186,7 @@ RULES:
 - When the user DOES specify a time (e.g. \"at 4:30 PM\", \"around 2pm\"), use that time on today's date (2026-07-07).
 - Timezone is America/Indiana/Indianapolis (EDT, UTC-4).
 - For medications, match the medication_name EXACTLY to the list above.
+- Use log_medication_done when someone says a medication is finished, done, no more pills, prescription is gone, or they took the last dose. This marks it complete and stops future reminders.
 - For scheduled meds, calculate nextDueAt as given_at + intervalHours.
 - If the medication isn't in the list but is clearly an OTC nausea/digestive med, use log_nausea_med.
 - Keep summary to one sentence confirming what was done.

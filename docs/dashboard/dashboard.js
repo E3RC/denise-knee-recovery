@@ -1395,7 +1395,20 @@ if ('serviceWorker' in navigator) {
         }
       }
 
-      if (action.type === 'log_nausea_med') {
+      if (action.type === 'log_medication_done') {
+        var name = (action.medication_name || '').toLowerCase();
+        var matched = null;
+        for (var k in medIndex) {
+          if (name.indexOf(k) !== -1 || k.indexOf(name) !== -1) { matched = medIndex[k]; break; }
+        }
+        if (matched) {
+          matched.dispensed = true;
+          matched.nextDueAt = '';
+          matched.lastGivenAt = at;
+          matched.notes = (matched.notes || '') + ' | COMPLETED - no more doses.';
+          matched.stopRule = 'Completed';
+        }
+      }
         meds.forEach(function(m) {
           var nl = (m.name || '').toLowerCase();
           if (nl.indexOf('nausea') !== -1 || nl.indexOf('zofran') !== -1 || nl.indexOf('ondansetron') !== -1) {
