@@ -101,7 +101,9 @@ def resolve_static_path(pathname: str) -> Path | None:
         candidate = DOCS_DIR / "caregiver" / "index.html"
     elif pathname == "/dashboard":
         candidate = DOCS_DIR / "dashboard" / "index.html"
-    elif pathname.startswith("/dashboard/") or pathname.startswith("/caregiver/"):
+    elif pathname == "/patient":
+        candidate = DOCS_DIR / "patient" / "index.html"
+    elif pathname.startswith("/dashboard/") or pathname.startswith("/caregiver/") or pathname.startswith("/patient/"):
         candidate = DOCS_DIR / pathname.lstrip("/")
         if pathname.endswith("/"):
             candidate = candidate / "index.html"
@@ -132,7 +134,7 @@ def parse_cookies(header: str) -> dict[str, str]:
 def is_private_path(pathname: str) -> bool:
     if pathname == "/api/dashboard-state":
         return True
-    if pathname == "/dashboard" or pathname == "/dashboard/":
+    if pathname in ("/dashboard", "/dashboard/", "/patient", "/patient/"):
         return True
     return False
 
