@@ -175,11 +175,60 @@ function wireQuickLogs() {
 
 // ---- Pain Buttons ----
 function wirePain() {
-  if (els.painSlider) {
-    els.painSlider.addEventListener('change', function() {
-      var val = parseInt(els.painSlider.value, 10);
+  var pendingPainVal = null;
+  var painConfirmBar = null;
+
+  function showPainConfirm(val) {
+    if (painConfirmBar) painConfirmBar.remove();
+    painConfirmBar = document.createElement('div');
+    painConfirmBar.style.cssText = 'display:flex;align-items:center;gap:8px;margin-top:10px;padding:8px 12px;background:var(--accent-soft);border-radius:var(--radius-sm);font-size:15px';
+    painConfirmBar.innerHTML = '<span style="flex:1">Log pain: <strong>' + val + '/10</strong>?</span>' +
+      '<button id="pain-confirm-yes" style="padding:8px 16px;border:none;border-radius:8px;background:var(--accent);color:#fff;cursor:pointer;font-size:14px">Yes</button>' +
+      '<button id="pain-confirm-no" style="padding:8px 16px;border:none;border-radius:8px;background:var(--line);color:var(--text);cursor:pointer;font-size:14px">No</button>';
+    var sliderWrap = document.querySelector('.pain-slider-wrap');
+    if (sliderWrap) {
+      sliderWrap.parentNode.insertBefore(painConfirmBar, sliderWrap.nextSibling);
+    }
+    document.getElementById('pain-confirm-yes').addEventListener('click', function() {
       logPain(val);
+      if (painConfirmBar) { painConfirmBar.remove(); painConfirmBar = null; }
+      pendingPainVal = null;
+      resetPainBtns();
     });
+    document.getElementById('pain-confirm-no').addEventListener('click', function() {
+      if (painConfirmBar) { painConfirmBar.remove(); painConfirmBar = null; }
+      pendingPainVal = null;
+      resetPainBtns();
+    });
+  }
+
+  function resetPainBtns() {
+    var btns = document.querySelectorAll('[data-quick-log="pain"]');
+    btns.forEach(function(b) { b.style.outline = ''; b.style.fontWeight = ''; });
+  }
+
+  function highlightPainBtn(val) {
+    resetPainBtns();
+    var btns = document.querySelectorAll('[data-quick-log="pain"]');
+    btns.forEach(function(b) {
+      var range = b.dataset.value || '';
+      var parts = range.split('-');
+      var lo = parseInt(parts[0]);
+      var hi = parts.length === 2 ? parseInt(parts[1]) : lo;
+      if (val >= lo && val <= hi) {
+        b.style.outline = '3px solid var(--accent)';
+        b.style.fontWeight = 'bold';
+      }
+    });
+  }
+
+  if (els.painSlider) {
+    els.painSlider.addEventListener('input', function() {
+      var val = parseInt(els.painSlider.value, 10);
+      highlightPainBtn(val);
+      showPainConfirm(val);
+    });
+    // Remove old change listener - slider doesn't auto-log anymore
   }
 
   var painBtns = document.querySelectorAll('[data-quick-log="pain"]');
@@ -190,7 +239,8 @@ function wirePain() {
       var val = parts.length === 2 ? Math.round((parseInt(parts[0]) + parseInt(parts[1])) / 2) : parseInt(range);
       if (isNaN(val)) val = 5;
       if (els.painSlider) els.painSlider.value = val;
-      logPain(val);
+      highlightPainBtn(val);
+      showPainConfirm(val);
     });
   });
 
