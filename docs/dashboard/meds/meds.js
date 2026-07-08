@@ -321,7 +321,7 @@ function renderMedicationList() {
         <button type="button" class="${item.dispensed ? 'primary' : 'ghost'}" data-toggle-dispensed="${index}">${item.dispensed ? 'Dispensed' : 'Not dispensed'}</button>
       </div>
       <p class="small">Next dose at ${escapeHtml(formatTimeOnly(item.nextDueAt) || 'not set')}</p>
-      <p class="med-countdown" data-med-countdown="${index}">${escapeHtml(formatCountdown(item.nextDueAt))}</p>
+      <p class="med-countdown" data-med-countdown="${index}" style="${isOverdue(item.nextDueAt) ? 'color:#c53030;font-weight:600' : ''}">${escapeHtml(formatCountdown(item.nextDueAt))}</p>
     </div>
   `).join('');
   updateCountdowns();
@@ -497,6 +497,14 @@ function render() {
   renderPushoverPreview();
 }
 
+function toast(msg) {
+  var el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(function() { el.remove(); }, 1800);
+}
+
 els.medicationForm.addEventListener('input', event => {
   const target = event.target.closest('[data-med-index][data-med-field]');
   if (!target) return;
@@ -537,7 +545,10 @@ els.medicationForm.addEventListener('click', event => {
 els.medicationList.addEventListener('click', event => {
   const takenButton = event.target.closest('[data-med-taken]');
   if (takenButton) {
-    logMedicationDose(Number(takenButton.dataset.medTaken));
+    var idx = Number(takenButton.dataset.medTaken);
+    var medName = state.medicationTemplates[idx]?.name || 'Medication';
+    logMedicationDose(idx);
+    toast(medName + ' logged');
     return;
   }
 
@@ -599,3 +610,5 @@ initSelectionFromUrl();
 render();
 startCountdownTimer();
 void syncRemoteState();
+// Refresh from server every 30 seconds
+window.setInterval(syncRemoteState, 30000);
