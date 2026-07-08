@@ -1037,7 +1037,7 @@ if (els.surgeryDate) els.surgeryDate.addEventListener('change', () => {
   saveState();
 });
 
-els.checklist.addEventListener('change', (event) => {
+els.checklist && els.checklist.addEventListener('change', (event) => {
   const input = event.target.closest('[data-check]');
   if (!input) return;
   const index = Number(input.dataset.check);
@@ -1063,7 +1063,7 @@ function toast(msg) {
   setTimeout(function() { el.remove(); }, 1800);
 }
 
-els.contactsForm.addEventListener('input', event => {
+els.contactsForm && els.contactsForm.addEventListener('input', event => {
   const target = event.target.closest('[data-contact-index][data-contact-field]');
   if (!target) return;
   const index = Number(target.dataset.contactIndex);
@@ -1072,7 +1072,7 @@ els.contactsForm.addEventListener('input', event => {
   item[target.dataset.contactField] = target.value;
 });
 
-els.patientForm.addEventListener('input', event => {
+els.patientForm && els.patientForm.addEventListener('input', event => {
   const target = event.target.closest('[data-patient-field]');
   if (!target) return;
   const field = target.dataset.patientField;
@@ -1092,7 +1092,7 @@ els.photoLog && els.photoLog.addEventListener('input', event => {
   item[field] = field === 'when' ? normalizeLogTime(target.value) : target.value;
 });
 
-els.milestones.addEventListener('input', event => {
+els.milestones && els.milestones.addEventListener('input', event => {
   const target = event.target.closest('[data-milestone-index][data-milestone-field]');
   if (!target) return;
   const index = Number(target.dataset.milestoneIndex);
@@ -1111,8 +1111,8 @@ els.caregiverLog && els.caregiverLog.addEventListener('input', event => {
   item[field] = field === 'when' ? normalizeLogTime(target.value) : target.value;
 });
 
-els.contactsForm.addEventListener('blur', persistAndRender, true);
-els.patientForm.addEventListener('blur', persistAndRender, true);
+els.contactsForm && els.contactsForm.addEventListener('blur', persistAndRender, true);
+els.patientForm && els.patientForm.addEventListener('blur', persistAndRender, true);
 els.photoLog && els.photoLog.addEventListener('blur', persistAndRender, true);
 
 els.caregiverLog && els.caregiverLog.addEventListener('blur', persistAndRender, true);
@@ -1164,7 +1164,7 @@ els.quickFastingLog && els.quickFastingLog.addEventListener('click', () => {
   addQuickCaregiverLog('Pre-op / fasting', 'Denise knew she had to stop eating by midnight.');
 });
 
-els.quickCheckGrid.addEventListener('click', event => {
+els.quickCheckGrid && els.quickCheckGrid.addEventListener('click', event => {
   const button = event.target.closest('[data-quick-check]');
   if (!button) return;
   addOrUpdateQuickCheck(button.dataset.quickCheck);
