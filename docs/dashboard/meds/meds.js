@@ -359,19 +359,19 @@ function saveEdit() {
 // ---- Wire Events ----
 
 function wireEvents() {
-  els.addBtn.addEventListener('click', function() {
+  if (els.addBtn) els.addBtn.addEventListener('click', function() {
     state.medicationTemplates.push({ name: '', dose: '', scheduled: '', intervalHours: '', instructions: '', notes: '' });
     openEdit(state.medicationTemplates.length - 1);
   });
 
-  els.editClose.addEventListener('click', closeEdit);
-  els.editSave.addEventListener('click', saveEdit);
+  if (els.editClose) els.editClose.addEventListener('click', closeEdit);
+  if (els.editSave) els.editSave.addEventListener('click', saveEdit);
 
-  els.overlay.addEventListener('click', function(e) {
+  if (els.overlay) els.overlay.addEventListener('click', function(e) {
     if (e.target === els.overlay) closeEdit();
   });
 
-  els.list.addEventListener('click', function(e) {
+  if (els.list) els.list.addEventListener('click', function(e) {
     var btn = e.target.closest('[data-action]');
     if (!btn) return;
     var action = btn.dataset.action;

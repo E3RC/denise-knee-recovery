@@ -3,6 +3,7 @@ var DASHBOARD_STATE_URL = '/api/dashboard-state';
 var SURGERY_DATE = '2026-07-06';
 
 var state = {};
+var dirtySince = 0;
 var pendingActions = null;
 
 var els = {};
@@ -44,12 +45,15 @@ function syncRemoteState() {
   fetch(DASHBOARD_STATE_URL, { cache: 'no-store' })
     .then(function(r) { return r.ok ? r.json() : null; })
     .then(function(data) {
-      if (data) { state = data; localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); render(); }
+      if (!data) return;
+      if (dirtySince && Date.now() - dirtySince < 5000) return;
+      state = data; localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); render();
     })
     .catch(function() {});
 }
 
 function persistRemoteState() {
+  dirtySince = Date.now();
   fetch(DASHBOARD_STATE_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -60,7 +64,7 @@ function persistRemoteState() {
 function recoveryDay() {
   var surgery = new Date(SURGERY_DATE + 'T12:00:00');
   var now = new Date();
-  return Math.max(0, Math.floor((now - surgery) / 86400000));
+  return Math.max(0, Math.floor((now - surgery) / 86400000)) + 1;
 }
 
 function render() {
@@ -150,7 +154,7 @@ function renderTodaySummary() {
 
 function esc(s) {
   s = String(s || '');
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 }
 
 // ---- Quick Log Buttons ----
@@ -346,7 +350,7 @@ function wireAI() {
   }
 
   function hideConfirm() {
-    aiConfirm.style.display = 'none';
+    if (aiConfirm) aiConfirm.style.display = 'none';
     pendingActions = null;
     if (aiApply) aiApply.style.display = '';
   }
@@ -535,6 +539,7 @@ function wireCheckin() {
   }
 
   function renderCheckinMeds() {
+    if (!medsList) return;
     var meds = getMorningMeds();
     medsList.innerHTML = meds.map(function(m, i) {
       var name = m.name || '';

@@ -154,12 +154,13 @@ def parse_caregiver_command(text: str, current_state: dict | None) -> dict:
     med_list = "\n".join(f"- {n}" for n in med_names) if med_names else "(none)"
 
     now_edt = datetime.now(timezone(timedelta(hours=-4)))
-    system_prompt = f"""You are a caregiver assistant for Denise's knee replacement recovery (surgery 2026-07-06).
+    surgery_date = os.environ.get("SURGERY_DATE", "2026-07-06")
+    system_prompt = f"""You are a caregiver assistant for Denise's knee replacement recovery (surgery {surgery_date}).
 Your job: parse a caregiver's natural language note into structured JSON actions.
 
 Current time: {now_edt.isoformat()} (Eastern, UTC-4)
 
-PATIENT: Denise, total knee replacement, surgery 2026-07-06, caregiver: Brent.
+PATIENT: Denise, total knee replacement, surgery {surgery_date}, caregiver: Brent.
 CURRENT MEDICATIONS:
 {med_list}
 
@@ -184,7 +185,7 @@ Each action must have a "type" field. Supported types:
 
 RULES:
 - CRITICAL: When NO specific time is mentioned (e.g. \"I took Tylenol\", \"pain is 3\", \"did a walk\"), set given_at to the CURRENT time listed above. NEVER use midnight (00:00:00) unless the user explicitly says midnight.
-- When the user DOES specify a time (e.g. \"at 4:30 PM\", \"around 2pm\"), use that time on today's date (2026-07-07).
+- When the user DOES specify a time (e.g. \"at 4:30 PM\", \"around 2pm\"), use that time on today's date ({now_edt.strftime('%Y-%m-%d')}).
 - Timezone is America/Indiana/Indianapolis (EDT, UTC-4).
 - For medications, match the medication_name EXACTLY to the list above.
 - Use log_medication_done when someone says a medication is finished, done, no more pills, prescription is gone, or they took the last dose. This marks it complete and stops future reminders.
@@ -586,7 +587,10 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header(key, value)
         self.end_headers()
         if send_body:
-            self.wfile.write(body)
+            try:
+                self.wfile.write(body)
+            except (BrokenPipeError, ConnectionResetError):
+                pass
 
     def _text(self, status: int, body: bytes, content_type: str, *, send_body: bool) -> None:
         self.send_response(status)
@@ -594,7 +598,10 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         if send_body:
-            self.wfile.write(body)
+            try:
+                self.wfile.write(body)
+            except (BrokenPipeError, ConnectionResetError):
+                pass
 
     def log_message(self, format: str, *args: object) -> None:
         return

@@ -13,8 +13,11 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 
-DEFAULT_CONFIG = Path("data/reminders.json")
-DEFAULT_STATE = Path("data/reminder-state.json")
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_DIR = SCRIPT_DIR.parent
+
+DEFAULT_CONFIG = REPO_DIR / "data/reminders.json"
+DEFAULT_STATE = REPO_DIR / "data/reminder-state.json"
 DEFAULT_WINDOW_MINUTES = 10
 PUSHOVER_URL = "https://api.pushover.net/1/messages.json"
 DAY_NAMES = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
@@ -109,7 +112,7 @@ def main() -> int:
 def check_medication_timers(user_key: str, app_token: str, state: dict, state_path: Path, tz: ZoneInfo, window_start: datetime, window_end: datetime, public_base_url: str) -> int:
     import sqlite3
 
-    db_path = Path(os.environ.get("DB_PATH", "data/recovery.sqlite"))
+    db_path = Path(os.environ.get("DB_PATH", str(REPO_DIR / "data/recovery.sqlite")))
     if not db_path.exists():
         return 0
 

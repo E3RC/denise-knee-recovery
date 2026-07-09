@@ -301,6 +301,7 @@ const els = {
 };
 
 let state = structuredClone(DEFAULT_STATE);
+let dirtySince = 0;
 
 function loadState() {
   try {
@@ -314,6 +315,7 @@ async function syncRemoteState() {
   try {
     const response = await fetch(DASHBOARD_STATE_URL, { cache: 'no-store' });
     if (!response.ok) return;
+    if (dirtySince && Date.now() - dirtySince < 5000) return;
     state = normalizeState(await response.json());
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     render();
@@ -335,6 +337,7 @@ async function persistRemoteState() {
 function saveState(syncRemote = true) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   if (syncRemote) {
+    dirtySince = Date.now();
     void persistRemoteState();
   }
 }
@@ -495,12 +498,6 @@ function normalizeMilestoneHistoryEntry(entry) {
     action: entry?.action === 'uncompleted' ? 'uncompleted' : 'completed',
     at: String(entry?.at || '')
   };
-}
-
-function normalizeLogTime(value) {
-  if (!value) return '';
-  const dt = new Date(value);
-  return Number.isNaN(dt.getTime()) ? '' : dt.toISOString();
 }
 
 function stamp(text, type) {
