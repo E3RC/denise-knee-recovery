@@ -349,6 +349,10 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         pathname = unquote(parsed.path)
 
+        if pathname == "/api/magic-link":
+            self._handle_magic_link(parsed)
+            return
+
         if pathname == "/api/health":
             self._json(HTTPStatus.OK, {"ok": True, "db": str(DB_PATH)}, send_body=send_body)
             return
@@ -452,6 +456,37 @@ class Handler(BaseHTTPRequestHandler):
     def _clear_caregiver_session(self) -> None:
         cookie = f"{SESSION_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0"
         self._json(HTTPStatus.OK, {"ok": True}, extra_headers={"Set-Cookie": cookie})
+
+    def _handle_magic_link(self, parsed) -> None:
+        import hashlib, hmac, time
+        params = dict(q.split("=", 1) for q in parsed.query.split("&") if "=" in q)
+        token = params.get("t", "")
+
+        if not token or not CAREGIVER_PIN:
+            self._redirect("/caregiver")
+            return
+
+        try:
+            parts = token.split(":", 1)
+            expiry = int(parts[0])
+            sig = parts[1]
+        except (ValueError, IndexError):
+            self._redirect("/caregiver")
+            return
+
+        payload = f"{expiry}"
+        expected = hmac.new(CAREGIVER_PIN.encode(), payload.encode(), hashlib.sha256).hexdigest()[:16]
+        if time.time() > expiry or not hmac.compare_digest(expected, sig):
+            self._redirect("/caregiver")
+            return
+
+        cookie = f"{SESSION_COOKIE_NAME}={SESSION_TOKEN}; Path=/; HttpOnly; SameSite=Lax"
+        med = params.get("m", "")
+        target = f"/dashboard/meds/?med={med}" if med else "/dashboard/meds/"
+        self.send_response(HTTPStatus.FOUND)
+        self.send_header("Location", target)
+        self.send_header("Set-Cookie", cookie)
+        self.end_headers()
 
     def _handle_caregiver_command(self) -> None:
         payload = self._read_json_body()

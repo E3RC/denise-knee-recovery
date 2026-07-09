@@ -24,6 +24,31 @@ function init() {
   wireEvents();
 
   setInterval(syncRemote, 30000);
+
+  // Focus on specific med if ?med= query param present
+  var params = new URLSearchParams(window.location.search);
+  var medParam = params.get('med');
+  if (medParam) {
+    setTimeout(focusMed, 500);
+  }
+}
+
+function focusMed() {
+  var params = new URLSearchParams(window.location.search);
+  var medParam = params.get('med');
+  if (!medParam) return;
+  var meds = state.medicationTemplates || [];
+  for (var i = 0; i < meds.length; i++) {
+    var name = (meds[i].name || '').toLowerCase();
+    if (name.indexOf(medParam.toLowerCase()) !== -1) {
+      var card = document.getElementById('med-card-' + i);
+      if (card) {
+        card.classList.add('expanded');
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      break;
+    }
+  }
 }
 
 function loadState() {

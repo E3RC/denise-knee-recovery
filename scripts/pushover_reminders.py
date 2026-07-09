@@ -155,15 +155,16 @@ def check_medication_timers(user_key: str, app_token: str, state: dict, state_pa
 
         dose = med.get("dose", "")
         title = f"Medication due: {med_name}"
-        message = f"{med_name} ({dose}) is due now. Log it on the dashboard if taken."
+        message = f"{med_name} ({dose}) is due now. Tap to log as taken."
+        magic_url = make_magic_link(med_name, public_base_url)
         send_pushover(
             app_token=app_token,
             user_key=user_key,
             title=title,
             message=message,
             priority=1,
-            url=resolve_url("/dashboard/meds/", public_base_url),
-            url_title="Open meds page",
+            url=magic_url or resolve_url("/dashboard/meds/", public_base_url),
+            url_title="Log dose",
         )
         state[state_key] = datetime.now(tz).isoformat(timespec="seconds")
         sent += 1
@@ -277,6 +278,23 @@ def normalize_days(value: object) -> set[str]:
 def format_due(reminder: dict[str, object], due_at: datetime) -> str:
     name = str(reminder.get("name") or reminder.get("title") or reminder.get("id") or "Reminder")
     return f"{due_at.isoformat(timespec='minutes')} | {name} | {reminder.get('id', '')}"
+
+
+def make_magic_link(med_name: str, base_url: str) -> str:
+    import hashlib
+    import hmac
+    import time
+    import urllib.parse
+
+    pin = os.environ.get("CAREGIVER_PIN", "").strip()
+    if not pin or not base_url:
+        return ""
+
+    expiry = int(time.time()) + 900
+    payload = str(expiry)
+    sig = hmac.new(pin.encode(), payload.encode(), hashlib.sha256).hexdigest()[:16]
+    token = f"{expiry}:{sig}"
+    return f"{base_url}/api/magic-link?t={urllib.parse.quote(token)}&m={urllib.parse.quote(med_name)}"
 
 
 def resolve_url(value: object, public_base_url: str) -> str:
