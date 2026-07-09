@@ -134,8 +134,7 @@ def check_medication_timers(user_key: str, app_token: str, state: dict, state_pa
     for med in meds:
         if med.get("stopRule", "") == "Completed":
             continue
-        if med.get("scheduled", "") == "PRN" or med.get("scheduled", "").upper().startswith("PRN"):
-            continue
+        is_prn = (med.get("scheduled", "") == "PRN" or str(med.get("scheduled", "")).upper().startswith("PRN"))
         next_due_str = med.get("nextDueAt", "")
         if not next_due_str:
             continue
@@ -154,6 +153,9 @@ def check_medication_timers(user_key: str, app_token: str, state: dict, state_pa
         is_overdue = next_due < window_start
         is_due_now = next_due >= window_start and next_due <= window_end
         if not is_due_now and not is_overdue:
+            continue
+        # PRN meds: only alert when due now, not for overdue
+        if is_prn and is_overdue:
             continue
 
         med_name = med.get("name", "Medication")
