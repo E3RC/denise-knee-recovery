@@ -5,6 +5,8 @@ var TZ = 'America/Indiana/Indianapolis';
 var state = { medicationTemplates: [] };
 var fullState = {};
 var countdownInterval = null;
+var syncInterval = null;
+var dirtySince = 0;
 
 var els = {};
 
@@ -23,7 +25,7 @@ function init() {
   startCountdown();
   wireEvents();
 
-  setInterval(syncRemote, 30000);
+  syncInterval = setInterval(syncRemote, 30000);
 
   // Focus on specific med if ?med= query param present
   var params = new URLSearchParams(window.location.search);
@@ -70,12 +72,13 @@ function syncRemote() {
   fetch(API, { cache: 'no-store' })
     .then(function(r) { return r.ok ? r.json() : null; })
     .then(function(data) {
-      if (data) {
-        fullState = data;
-        state.medicationTemplates = data.medicationTemplates || [];
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-        render();
-      }
+      if (!data) return;
+      // Don't overwrite local med changes if we just saved
+      if (dirtySince && Date.now() - dirtySince < 5000) return;
+      fullState = data;
+      state.medicationTemplates = data.medicationTemplates || [];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      render();
     })
     .catch(function() {});
 }
@@ -91,7 +94,11 @@ function persistRemote() {
 
 function saveAll() {
   saveState();
+  dirtySince = Date.now();
   persistRemote();
+  // Cancel any in-flight sync, retry in 5s
+  clearInterval(syncInterval);
+  syncInterval = setInterval(syncRemote, 30000);
   render();
 }
 
