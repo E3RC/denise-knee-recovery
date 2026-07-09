@@ -144,18 +144,26 @@ def check_medication_timers(user_key: str, app_token: str, state: dict, state_pa
         if next_due.tzinfo != tz:
             next_due = next_due.astimezone(tz)
 
-        if next_due > window_end or next_due < window_start:
+        is_overdue = next_due < window_start
+        is_due_now = next_due >= window_start and next_due <= window_end
+        if not is_due_now and not is_overdue:
             continue
 
         med_name = med.get("name", "Medication")
         med_key = "med-timer-" + med_name.lower().replace(" ", "-").replace("(", "").replace(")", "")
-        state_key = f"{med_key}|{next_due.strftime('%Y-%m-%dT%H:%M')}"
+
+        if is_overdue:
+            state_key = f"med-overdue-{med_key}|{datetime.now(tz).strftime('%Y-%m-%dT%H')}"
+            message = f"{med_name} ({med.get('dose', '')}) is OVERDUE. Tap to log as taken."
+            title = f"Overdue: {med_name}"
+        else:
+            state_key = f"{med_key}|{next_due.strftime('%Y-%m-%dT%H:%M')}"
+            message = f"{med_name} ({med.get('dose', '')}) is due now. Tap to log as taken."
+            title = f"Medication due: {med_name}"
+
         if state.get(state_key):
             continue
 
-        dose = med.get("dose", "")
-        title = f"Medication due: {med_name}"
-        message = f"{med_name} ({dose}) is due now. Tap to log as taken."
         magic_url = make_magic_link(med_name, public_base_url)
         send_pushover(
             app_token=app_token,
