@@ -132,6 +132,8 @@ def check_medication_timers(user_key: str, app_token: str, state: dict, state_pa
 
     sent = 0
     for med in meds:
+        if med.get("stopRule", "") == "Completed":
+            continue
         next_due_str = med.get("nextDueAt", "")
         if not next_due_str:
             continue
