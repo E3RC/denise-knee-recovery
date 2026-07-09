@@ -460,7 +460,7 @@ class Handler(BaseHTTPRequestHandler):
     def _handle_magic_link(self, parsed) -> None:
         import hashlib, hmac, time
         params = dict(q.split("=", 1) for q in parsed.query.split("&") if "=" in q)
-        token = params.get("t", "")
+        token = unquote(params.get("t", ""))
 
         if not token or not CAREGIVER_PIN:
             self._redirect("/caregiver")
