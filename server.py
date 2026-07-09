@@ -15,6 +15,10 @@ from pathlib import Path
 from urllib.parse import unquote, urlparse
 import urllib.request
 import urllib.error
+from zoneinfo import ZoneInfo
+
+
+ET = ZoneInfo("America/Indiana/Indianapolis")
 
 
 ROOT = Path(__file__).resolve().parent
@@ -36,7 +40,7 @@ mimetypes.add_type("application/manifest+json", ".webmanifest")
 
 
 def now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    return datetime.now(ET).isoformat(timespec="seconds")
 
 
 def init_db() -> None:
@@ -153,12 +157,12 @@ def parse_caregiver_command(text: str, current_state: dict | None) -> dict:
 
     med_list = "\n".join(f"- {n}" for n in med_names) if med_names else "(none)"
 
-    now_edt = datetime.now(timezone(timedelta(hours=-4)))
+    now_edt = datetime.now(ET)
     surgery_date = os.environ.get("SURGERY_DATE", "2026-07-06")
     system_prompt = f"""You are a caregiver assistant for Denise's knee replacement recovery (surgery {surgery_date}).
 Your job: parse a caregiver's natural language note into structured JSON actions.
 
-Current time: {now_edt.isoformat()} (Eastern, UTC-4)
+Current time: {now_edt.isoformat()} (Eastern)
 
 PATIENT: Denise, total knee replacement, surgery {surgery_date}, caregiver: Brent.
 CURRENT MEDICATIONS:
@@ -242,7 +246,7 @@ RULES:
 def apply_command_actions(state: dict, actions: list[dict]) -> dict:
     from datetime import timedelta
 
-    tz_edt = timezone(timedelta(hours=-4))
+    tz_edt = ET
     changes = []
     state = json.loads(json.dumps(state))
 

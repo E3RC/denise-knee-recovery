@@ -206,7 +206,7 @@ function formatNextTime(nextDueAt) {
   if (!nextDueAt) return '';
   var due = new Date(nextDueAt);
   if (isNaN(due.getTime())) return '';
-  return 'next ' + due.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  return 'next ' + due.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', timeZone: TZ });
 }
 
 function formatFullTime(val) {
@@ -280,7 +280,7 @@ function logDose(index) {
   if (interval > 0) {
     med.nextDueAt = new Date(Date.now() + interval * 3600000).toISOString();
   }
-  med.notes = (med.notes || '') + ' | Dose logged ' + new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + '.';
+  med.notes = (med.notes || '') + ' | Dose logged ' + new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', timeZone: TZ }) + '.';
   saveAll();
   toast((med.name || 'Medication') + ' logged');
 }

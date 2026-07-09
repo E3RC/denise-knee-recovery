@@ -62,9 +62,11 @@ function persistRemoteState() {
 }
 
 function recoveryDay() {
-  var surgery = new Date(SURGERY_DATE + 'T12:00:00');
+  var surgery = new Date(SURGERY_DATE + 'T12:00:00-04:00');
   var now = new Date();
-  return Math.max(0, Math.floor((now - surgery) / 86400000)) + 1;
+  var edtOffset = 240;
+  var nowEdt = now.getTime() + (edtOffset - now.getTimezoneOffset()) * 60000;
+  return Math.max(0, Math.floor((nowEdt - surgery.getTime()) / 86400000)) + 1;
 }
 
 function render() {
@@ -94,7 +96,10 @@ function renderPainBadge() {
 function renderMedsCount() {
   if (!els.medsCount) return;
   var meds = state.medicationTemplates || [];
-  var today = new Date().toISOString().slice(0, 10);
+  var now = new Date();
+  var edtOffset = 240;
+  var nowEdt = new Date(now.getTime() + (edtOffset - now.getTimezoneOffset()) * 60000);
+  var today = nowEdt.toISOString().slice(0, 10);
   var count = 0;
   meds.forEach(function(m) {
     if (m.dispensed && m.lastGivenAt && m.lastGivenAt.slice(0, 10) === today) count++;
@@ -141,7 +146,10 @@ function renderNextMeds() {
 function renderTodaySummary() {
   if (!els.todaySummary) return;
   var logs = state.activityLog || [];
-  var today = new Date().toISOString().slice(0, 10);
+  var now = new Date();
+  var edtOffset = 240;
+  var nowEdt = new Date(now.getTime() + (edtOffset - now.getTimezoneOffset()) * 60000);
+  var today = nowEdt.toISOString().slice(0, 10);
   var todayItems = [];
   for (var i = logs.length - 1; i >= 0; i--) {
     var at = logs[i].at || '';
@@ -412,8 +420,7 @@ function wireAI() {
           matched.notes = (matched.notes || '') + ' | Patient-logged: ' + at;
           var interval = parseInt(matched.intervalHours || '0', 10);
           if (interval > 0) {
-            var next = new Date(at);
-            next.setHours(next.getHours() + interval);
+            var next = new Date(new Date(at).getTime() + interval * 3600000);
             matched.nextDueAt = next.toISOString();
           }
         }
@@ -444,8 +451,7 @@ function wireAI() {
             m.notes = (m.notes || '') + ' | Patient-logged (nausea): ' + at;
             var interval = parseInt(m.intervalHours || '0', 10);
             if (interval > 0) {
-              var next = new Date(at);
-              next.setHours(next.getHours() + interval);
+              var next = new Date(new Date(at).getTime() + interval * 3600000);
               m.nextDueAt = next.toISOString();
             }
           }
@@ -615,8 +621,7 @@ function wireCheckin() {
           tmpl.givenBy = 'Patient (check-in)';
           var interval = parseInt(tmpl.intervalHours || '0', 10);
           if (interval > 0) {
-            var next = new Date(now);
-            next.setHours(next.getHours() + interval);
+            var next = new Date(new Date(now).getTime() + interval * 3600000);
             tmpl.nextDueAt = next.toISOString();
           }
           tmpl.notes = (tmpl.notes || '') + ' | Taken via morning check-in.';

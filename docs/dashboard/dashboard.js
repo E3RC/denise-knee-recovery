@@ -505,9 +505,11 @@ function stamp(text, type) {
 }
 
 function recoveryDay() {
+  const surgery = new Date(`${state.surgeryDate}T12:00:00-04:00`);
   const now = new Date();
-  const surgery = new Date(`${state.surgeryDate}T12:00:00`);
-  const diff = Math.floor((now - surgery) / 86400000);
+  const edtOffset = 240;
+  const nowEdt = now.getTime() + (edtOffset - now.getTimezoneOffset()) * 60000;
+  const diff = Math.floor((nowEdt - surgery.getTime()) / 86400000);
   return Math.max(0, diff + 1);
 }
 
@@ -636,7 +638,7 @@ function renderMedicationsList() {
   container.innerHTML = meds.map(function(m) {
     var name = m.name || 'Unnamed';
     var dose = m.dose || '';
-    var last = m.lastGivenAt ? new Date(m.lastGivenAt).toLocaleString() : 'Not yet';
+    var last = m.lastGivenAt ? new Date(m.lastGivenAt).toLocaleString([], { timeZone: DISPLAY_TIMEZONE }) : 'Not yet';
     var nextDue = m.nextDueAt ? new Date(m.nextDueAt).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}) : '--';
     return '<div class="item" style="padding:10px 0;border-bottom:1px solid var(--line)">' +
       '<div class="item-head"><strong>' + escapeHtml(name) + '</strong> <span class="tag">' + escapeHtml(dose) + '</span></div>' +
@@ -1395,8 +1397,7 @@ if ('serviceWorker' in navigator) {
           matched.notes = (matched.notes || '') + ' | AI-logged: ' + at;
           var interval = parseInt(matched.intervalHours || '0', 10);
           if (interval > 0) {
-            var next = new Date(at);
-            next.setHours(next.getHours() + interval);
+            var next = new Date(new Date(at).getTime() + interval * 3600000);
             matched.nextDueAt = next.toISOString();
           }
         }
@@ -1425,8 +1426,7 @@ if ('serviceWorker' in navigator) {
             m.notes = (m.notes || '') + ' | AI-logged (nausea): ' + at;
             var interval = parseInt(m.intervalHours || '0', 10);
             if (interval > 0) {
-              var next = new Date(at);
-              next.setHours(next.getHours() + interval);
+              var next = new Date(new Date(at).getTime() + interval * 3600000);
               m.nextDueAt = next.toISOString();
             }
           }
@@ -1596,8 +1596,7 @@ void syncRemoteState();
           tmpl.givenBy = 'Caregiver (check-in)';
           var interval = parseInt(tmpl.intervalHours || '0', 10);
           if (interval > 0) {
-            var next = new Date(now);
-            next.setHours(next.getHours() + interval);
+            var next = new Date(new Date(now).getTime() + interval * 3600000);
             tmpl.nextDueAt = next.toISOString();
           }
           tmpl.notes = (tmpl.notes || '') + ' | Taken via morning check-in.';

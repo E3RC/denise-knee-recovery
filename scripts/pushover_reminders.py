@@ -134,6 +134,8 @@ def check_medication_timers(user_key: str, app_token: str, state: dict, state_pa
     for med in meds:
         if med.get("stopRule", "") == "Completed":
             continue
+        if med.get("scheduled", "") == "PRN" or med.get("scheduled", "").upper().startswith("PRN"):
+            continue
         next_due_str = med.get("nextDueAt", "")
         if not next_due_str:
             continue
@@ -264,7 +266,7 @@ def compute_due_at(reminder: dict[str, object], tz: ZoneInfo, now: datetime) -> 
         allowed_days = normalize_days(reminder.get("daysOfWeek"))
         if allowed_days and DAY_NAMES[now.weekday()] not in allowed_days:
             return None
-        return now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        return datetime(now.year, now.month, now.day, hour, minute, 0, 0, tzinfo=tz)
 
     if reminder_type == "once":
         date_text = str(reminder.get("date") or "").strip()
