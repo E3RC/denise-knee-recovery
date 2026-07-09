@@ -3,72 +3,47 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Knee'd to Know | Meds</title>
+  <title>Knee'd to Know | Medications</title>
   <meta name="theme-color" content="#0f766e" />
   <link rel="icon" href="/dashboard/icon.svg" />
-  <link rel="manifest" href="/dashboard/manifest.webmanifest" />
-  <link rel="stylesheet" href="/dashboard/dashboard.css" />
+  <link rel="stylesheet" href="/dashboard/meds/meds.css" />
 </head>
 <body>
   <main class="shell">
-    <section class="hero">
+    <header class="topbar">
       <div class="brand-row">
-        <img src="/dashboard/icon.svg" alt="Knee'd to Know logo" class="brand-logo" />
+        <img src="/dashboard/icon.svg" alt="Logo" class="brand-logo" />
         <div>
-          <p class="eyebrow">Medication workspace</p>
+          <p class="eyebrow">Medications</p>
           <h1>Knee'd to Know</h1>
         </div>
       </div>
-      <p class="lede">Private medication tracking only. This page is where we will keep timer-ready schedules and Pushover-friendly reminder settings.</p>
-      <nav class="subnav" aria-label="Dashboard navigation">
-        <a class="subnav-link" href="/dashboard">Overview</a>
-        <a class="subnav-link is-active" href="/dashboard/meds/">Meds</a>
-        <a class="subnav-link" href="/patient">Patient View</a>
+      <nav class="tabs">
+        <a class="tab" href="/dashboard">Overview</a>
+        <a class="tab active" href="/dashboard/meds/">Meds</a>
+        <a class="tab" href="/patient">Patient</a>
       </nav>
-    </section>
+    </header>
 
-    <section class="grid">
-      <section class="card wide" id="medication-list-card">
-        <div class="section-head">
-          <h2>Medication plan</h2>
-          <div class="section-actions">
-            <button id="add-medication" class="ghost" type="button">Add medication</button>
-            <button id="save-medications" class="ghost" type="button">Save meds</button>
-          </div>
-        </div>
-        <p class="small">Simple list first. Tap a medication for details only when you need them.</p>
-        <div id="medication-list" class="stack"></div>
-      </section>
+    <div class="med-list" id="med-list"></div>
 
-      <section class="card wide" id="medication-detail-card">
-        <div class="section-head">
-          <h2 id="detail-title">Medication details</h2>
-          <div class="section-actions">
-            <button id="back-to-list" class="ghost" type="button">Back to list</button>
-            <button id="mark-dispensed" class="ghost" type="button">Toggle dispensed</button>
-          </div>
-        </div>
-        <p class="small">Enter names and directions exactly as written on the bottle or discharge paperwork. No dose calculations are generated here.</p>
-        <form id="medication-form" class="stack"></form>
-      </section>
-
-      <section class="card" id="timer-card">
-        <h2>Timer planning</h2>
-        <p class="small">Each logged dose becomes the starting point for the next timer.</p>
-        <div id="timer-preview" class="stack"></div>
-      </section>
-
-      <section class="card" id="pushover-card">
-        <h2>Pushover planning</h2>
-        <div id="pushover-preview" class="stack"></div>
-      </section>
-
-      <section class="card">
-        <h2>Reminder safety</h2>
-        <div id="reminder-safety" class="stack"></div>
-      </section>
-    </section>
+    <button id="add-med-btn" class="add-btn">+ Add medication</button>
   </main>
+
+  <!-- Hidden template for edit dialog -->
+  <div class="overlay" id="edit-overlay" style="display:none">
+    <div class="sheet" id="edit-sheet">
+      <div class="sheet-head">
+        <h2 id="edit-title">Edit</h2>
+        <button id="edit-close" class="ghost">&times;</button>
+      </div>
+      <div class="sheet-body" id="edit-body"></div>
+      <div class="sheet-foot">
+        <button id="edit-save" class="primary">Save</button>
+      </div>
+    </div>
+  </div>
+
   <script src="/dashboard/meds/meds.js"></script>
 </body>
 </html>
