@@ -536,7 +536,7 @@ function syncChecklistForPhase() {
 
 function countdownText() {
   const now = new Date();
-  const surgery = new Date(`${state.surgeryDate}T12:00:00`);
+  const surgery = new Date(`${state.surgeryDate}T12:00:00-04:00`);
   const diff = Math.ceil((surgery - now) / 86400000);
   if (diff > 1) return `${diff} days`;
   if (diff === 1) return 'Tomorrow';
@@ -623,7 +623,7 @@ function renderNextMeds() {
       var diffMin = Math.round(diffMs / 60000);
       if (diffMs < 0) { cls = 'overdue'; label = 'Overdue ' + Math.abs(diffMin) + 'm ago'; }
       else if (diffMin < 60) { cls = 'soon'; label = 'Due in ' + diffMin + 'm'; }
-      else { label = 'Next: ' + nextAt.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}); }
+      else { label = 'Next: ' + nextAt.toLocaleTimeString([], {hour:'numeric',minute:'2-digit',timeZone:DISPLAY_TIMEZONE}); }
     }
     var disp = m.dispensed ? ' &#10003;' : '';
     items.push('<div class="med-timer"><span class="med-name">' + escapeHtml(name) + disp + '</span><span class="med-due ' + cls + '">' + escapeHtml(label) + '</span></div>');
@@ -639,7 +639,7 @@ function renderMedicationsList() {
     var name = m.name || 'Unnamed';
     var dose = m.dose || '';
     var last = m.lastGivenAt ? new Date(m.lastGivenAt).toLocaleString([], { timeZone: DISPLAY_TIMEZONE }) : 'Not yet';
-    var nextDue = m.nextDueAt ? new Date(m.nextDueAt).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}) : '--';
+    var nextDue = m.nextDueAt ? new Date(m.nextDueAt).toLocaleTimeString([], {hour:'numeric',minute:'2-digit',timeZone:DISPLAY_TIMEZONE}) : '--';
     return '<div class="item" style="padding:10px 0;border-bottom:1px solid var(--line)">' +
       '<div class="item-head"><strong>' + escapeHtml(name) + '</strong> <span class="tag">' + escapeHtml(dose) + '</span></div>' +
       '<div class="small">Last: ' + escapeHtml(last) + ' | Next: ' + escapeHtml(nextDue) + '</div>' +
@@ -1374,14 +1374,12 @@ if ('serviceWorker' in navigator) {
   }
 
   function applyActions(actions) {
-    var tzOffset = state.surgeryDate ? new Date(state.surgeryDate + 'T12:00:00').getTimezoneOffset() : 240;
-    var localNow = new Date();
     var meds = state.medicationTemplates || [];
     var medIndex = {};
     meds.forEach(function(m) { if (m.name) medIndex[m.name.toLowerCase()] = m; });
 
     actions.forEach(function(action) {
-      var at = action.given_at || localNow.toISOString();
+      var at = action.given_at || new Date().toISOString();
 
       if (action.type === 'log_medication') {
         var name = (action.medication_name || '').toLowerCase();
@@ -1417,6 +1415,8 @@ if ('serviceWorker' in navigator) {
           matched.stopRule = 'Completed';
         }
       }
+
+      if (action.type === 'log_nausea_med') {
         meds.forEach(function(m) {
           var nl = (m.name || '').toLowerCase();
           if (nl.indexOf('nausea') !== -1 || nl.indexOf('zofran') !== -1 || nl.indexOf('ondansetron') !== -1) {

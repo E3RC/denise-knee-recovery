@@ -139,7 +139,9 @@ def check_medication_timers(user_key: str, app_token: str, state: dict, state_pa
         if not next_due_str:
             continue
         try:
-            next_due = datetime.fromisoformat(next_due_str)
+            # Handle "Z" suffix (from JavaScript toISOString) for older Python versions
+            normalized = next_due_str.replace("Z", "+00:00") if next_due_str.endswith("Z") else next_due_str
+            next_due = datetime.fromisoformat(normalized)
         except (ValueError, TypeError):
             continue
 

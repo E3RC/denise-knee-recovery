@@ -1,6 +1,7 @@
 var STORAGE_KEY = 'denise-patient';
 var DASHBOARD_STATE_URL = '/api/dashboard-state';
 var SURGERY_DATE = '2026-07-06';
+var DISPLAY_TIMEZONE = 'America/Indiana/Indianapolis';
 
 var state = {};
 var dirtySince = 0;
@@ -130,11 +131,11 @@ function renderNextMeds() {
       } else if (diffMin < 180) {
         label = 'In ' + Math.round(diffMin / 60) + 'h';
       } else {
-        label = nextAt.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
+        label = nextAt.toLocaleTimeString([], {hour:'numeric', minute:'2-digit', timeZone:DISPLAY_TIMEZONE});
       }
     }
     if (m.dispensed) {
-      var nextTime = m.nextDueAt ? new Date(m.nextDueAt).toLocaleTimeString([], {hour:'numeric', minute:'2-digit'}) : '';
+      var nextTime = m.nextDueAt ? new Date(m.nextDueAt).toLocaleTimeString([], {hour:'numeric', minute:'2-digit', timeZone:DISPLAY_TIMEZONE}) : '';
       label = 'Taken' + (nextTime ? ', next: ' + nextTime : '');
       cls = 'done';
     }

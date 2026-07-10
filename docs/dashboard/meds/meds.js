@@ -186,7 +186,7 @@ function getStatus(med) {
   var due = new Date(med.nextDueAt);
   if (isNaN(due.getTime())) return null;
   var diff = due - Date.now();
-  if (diff < 0) return med.dispensed ? null : 'overdue';
+  if (diff < 0) return 'overdue';
   if (diff < 3600000) return 'soon';
   return null;
 }
@@ -217,7 +217,7 @@ function formatFullTime(val) {
 }
 
 function esc(s) {
-  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 }
 
 // ---- Countdown Timers ----
@@ -258,7 +258,7 @@ function updateCountdowns() {
     var card = document.getElementById('med-card-' + i);
     if (card) {
       card.className = card.className.replace(/\boverdue\b|\bsoon\b/g, '').trim();
-      if (status === 'overdue' && !med.dispensed) card.classList.add('overdue');
+      if (status === 'overdue') card.classList.add('overdue');
       else if (status === 'soon') card.classList.add('soon');
       var dot = card.querySelector('.med-status-dot');
       if (dot) dot.className = 'med-status-dot ' + cls;

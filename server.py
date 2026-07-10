@@ -244,11 +244,9 @@ RULES:
 
 
 def apply_command_actions(state: dict, actions: list[dict]) -> dict:
-    from datetime import timedelta
-
-    tz_edt = ET
+    import copy
     changes = []
-    state = json.loads(json.dumps(state))
+    state = copy.deepcopy(state)
 
     med_templates = state.get("medicationTemplates", [])
     med_index = {m["name"].lower(): m for m in med_templates if m.get("name")}
@@ -273,7 +271,9 @@ def apply_command_actions(state: dict, actions: list[dict]) -> dict:
                         tmpl["notes"] = f"AI-logged: {given_at}"
                     interval = int(tmpl.get("intervalHours", 0) or 0)
                     if interval > 0:
-                        next_dt = datetime.fromisoformat(given_at) + timedelta(hours=interval)
+                        # Handle both "Z" and "+00:00" timezone formats
+                        given_at_normalized = given_at.replace("Z", "+00:00") if given_at.endswith("Z") else given_at
+                        next_dt = datetime.fromisoformat(given_at_normalized) + timedelta(hours=interval)
                         tmpl["nextDueAt"] = next_dt.isoformat()
                     break
             if action.get("notes"):
@@ -289,7 +289,9 @@ def apply_command_actions(state: dict, actions: list[dict]) -> dict:
                     tmpl["notes"] = (tmpl.get("notes", "") + f" | AI-logged: {given_at}").strip()
                     interval = int(tmpl.get("intervalHours", 0) or 0)
                     if interval > 0:
-                        next_dt = datetime.fromisoformat(given_at) + timedelta(hours=interval)
+                        # Handle both "Z" and "+00:00" timezone formats
+                        given_at_normalized = given_at.replace("Z", "+00:00") if given_at.endswith("Z") else given_at
+                        next_dt = datetime.fromisoformat(given_at_normalized) + timedelta(hours=interval)
                         tmpl["nextDueAt"] = next_dt.isoformat()
                     break
 
@@ -374,7 +376,8 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if is_private_path(pathname) and not self._has_caregiver_access():
-            self._redirect(f"/caregiver?next={pathname}")
+            from urllib.parse import quote
+            self._redirect(f"/caregiver?next={quote(pathname)}")
             return
 
         asset = resolve_static_path(pathname)
@@ -464,6 +467,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def _handle_magic_link(self, parsed) -> None:
         import hashlib, hmac, time
+        from urllib.parse import quote
         params = dict(q.split("=", 1) for q in parsed.query.split("&") if "=" in q)
         token = unquote(params.get("t", ""))
 
@@ -486,8 +490,8 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         cookie = f"{SESSION_COOKIE_NAME}={SESSION_TOKEN}; Path=/; HttpOnly; SameSite=Lax"
-        med = params.get("m", "")
-        target = f"/dashboard/meds/?med={med}" if med else "/dashboard/meds/"
+        med = unquote(params.get("m", ""))
+        target = f"/dashboard/meds/?med={quote(med)}" if med else "/dashboard/meds/"
         self.send_response(HTTPStatus.FOUND)
         self.send_header("Location", target)
         self.send_header("Set-Cookie", cookie)
