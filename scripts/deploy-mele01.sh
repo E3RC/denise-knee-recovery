@@ -33,16 +33,16 @@ fi
 
 if [[ -z "${INFISICAL_PROJECT_ID:-}" ]]; then
   if [[ ! -f .env ]]; then
-    echo ".env is missing. Start from .env.example, set real ADMIN_TOKEN and CAREGIVER_PIN values, then rerun."
+    echo ".env is missing. Start from .env.example, set real CAREGIVER_PIN and SESSION_SECRET values, then rerun."
     exit 1
   fi
 
-  if ! grep -Eq '^ADMIN_TOKEN=.+' .env || ! grep -Eq '^CAREGIVER_PIN=.+' .env; then
-    echo ".env must define non-empty ADMIN_TOKEN and CAREGIVER_PIN values."
+  if ! grep -Eq '^CAREGIVER_PIN=.+' .env || ! grep -Eq '^SESSION_SECRET=.+' .env; then
+    echo ".env must define non-empty CAREGIVER_PIN and SESSION_SECRET values."
     exit 1
   fi
 
-  if grep -Eq 'replace-with-a-long-random-token|replace-with-a-private' .env; then
+  if grep -Eq 'replace-with-a-long-random-session-secret|replace-with-a-private' .env; then
     echo ".env still contains placeholder secrets. Replace them before publish."
     exit 1
   fi

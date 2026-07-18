@@ -20,11 +20,11 @@ require_command docker
 require_command tailscale
 
 if [[ ! -f .env ]]; then
-  echo ".env is missing. Copy .env.example to .env and set real ADMIN_TOKEN and CAREGIVER_PIN values first."
+  echo ".env is missing. Copy .env.example to .env and set real CAREGIVER_PIN and SESSION_SECRET values first."
   exit 1
 fi
 
-if grep -Eq 'replace-with-a-long-random-token|replace-with-a-private' .env; then
+if grep -Eq 'replace-with-a-long-random-session-secret|replace-with-a-private' .env; then
   echo ".env still contains placeholder secrets. Replace them before publish."
   exit 1
 fi
