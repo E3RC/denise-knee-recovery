@@ -1,6 +1,7 @@
 # Denise Knee Recovery Dashboard - ChatGPT Project History
 
 This document summarizes the design discussions between Brent and ChatGPT so Codex has the architectural context.
+For new ChatGPT and Codex work in this repo, use `5.4 Mini Light` as the default model.
 
 ## Goal
 Build a caregiver dashboard for Denise's outpatient total knee replacement.

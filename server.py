@@ -466,36 +466,8 @@ class Handler(BaseHTTPRequestHandler):
         self._json(HTTPStatus.OK, {"ok": True}, extra_headers={"Set-Cookie": cookie})
 
     def _handle_magic_link(self, parsed) -> None:
-        import hashlib, hmac, time
-        from urllib.parse import quote
-        params = dict(q.split("=", 1) for q in parsed.query.split("&") if "=" in q)
-        token = unquote(params.get("t", ""))
-
-        if not token or not CAREGIVER_PIN:
-            self._redirect("/caregiver")
-            return
-
-        try:
-            parts = token.split(":", 1)
-            expiry = int(parts[0])
-            sig = parts[1]
-        except (ValueError, IndexError):
-            self._redirect("/caregiver")
-            return
-
-        payload = f"{expiry}"
-        expected = hmac.new(CAREGIVER_PIN.encode(), payload.encode(), hashlib.sha256).hexdigest()[:16]
-        if time.time() > expiry or not hmac.compare_digest(expected, sig):
-            self._redirect("/caregiver")
-            return
-
-        cookie = f"{SESSION_COOKIE_NAME}={SESSION_TOKEN}; Path=/; HttpOnly; SameSite=Lax"
-        med = unquote(params.get("m", ""))
-        target = f"/dashboard/meds/?med={quote(med)}" if med else "/dashboard/meds/"
-        self.send_response(HTTPStatus.FOUND)
-        self.send_header("Location", target)
-        self.send_header("Set-Cookie", cookie)
-        self.end_headers()
+        # One-time links are implemented by the FastAPI app and its SQLite token ledger.
+        self._redirect("/caregiver")
 
     def _handle_caregiver_command(self) -> None:
         payload = self._read_json_body()

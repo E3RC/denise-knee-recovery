@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import sys
@@ -164,7 +163,7 @@ def check_medication_timers(user_key: str, app_token: str, state: dict, state_pa
         med_key = "med-timer-" + med_name.lower().replace(" ", "-").replace("(", "").replace(")", "")
 
         if is_overdue:
-            state_key = f"med-overdue-{med_key}|{datetime.now(tz).strftime('%Y-%m-%dT%H')}"
+            state_key = f"med-overdue-{med_key}|{next_due.strftime('%Y-%m-%dT%H:%M')}"
             message = f"{med_name} ({med.get('dose', '')}) is OVERDUE. Tap to log as taken."
             title = f"Overdue: {med_name}"
         else:
@@ -175,14 +174,13 @@ def check_medication_timers(user_key: str, app_token: str, state: dict, state_pa
         if state.get(state_key):
             continue
 
-        magic_url = make_magic_link(med_name, public_base_url)
         send_pushover(
             app_token=app_token,
             user_key=user_key,
             title=title,
             message=message,
             priority=1,
-            url=magic_url or resolve_url("/dashboard/meds/", public_base_url),
+            url=resolve_url("/caregiver", public_base_url),
             url_title="Log dose",
         )
         state[state_key] = datetime.now(tz).isoformat(timespec="seconds")
@@ -297,23 +295,6 @@ def normalize_days(value: object) -> set[str]:
 def format_due(reminder: dict[str, object], due_at: datetime) -> str:
     name = str(reminder.get("name") or reminder.get("title") or reminder.get("id") or "Reminder")
     return f"{due_at.isoformat(timespec='minutes')} | {name} | {reminder.get('id', '')}"
-
-
-def make_magic_link(med_name: str, base_url: str) -> str:
-    import hashlib
-    import hmac
-    import time
-    import urllib.parse
-
-    pin = os.environ.get("CAREGIVER_PIN", "").strip()
-    if not pin or not base_url:
-        return ""
-
-    expiry = int(time.time()) + 900
-    payload = str(expiry)
-    sig = hmac.new(pin.encode(), payload.encode(), hashlib.sha256).hexdigest()[:16]
-    token = f"{expiry}:{sig}"
-    return f"{base_url}/api/magic-link?t={urllib.parse.quote(token)}&m={urllib.parse.quote(med_name)}"
 
 
 def resolve_url(value: object, public_base_url: str) -> str:

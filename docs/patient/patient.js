@@ -1,7 +1,7 @@
 var STORAGE_KEY = 'denise-patient';
 var DASHBOARD_STATE_URL = '/api/dashboard-state';
 var SURGERY_DATE = '2026-07-06';
-var DISPLAY_TIMEZONE = 'America/Indiana/Indianapolis';
+var DISPLAY_TIMEZONE = 'America/New_York';
 
 var state = {};
 var dirtySince = 0;
@@ -60,6 +60,33 @@ function persistRemoteState() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(state)
   }).catch(function() {});
+}
+
+function medicationEventId() {
+  if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
+  return 'patient-med-' + Date.now() + '-' + Math.random().toString(16).slice(2);
+}
+
+function recordMedicationEvent(medicationName, eventType, occurredAt, notes) {
+  return fetch('/api/medication-events', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      eventId: medicationEventId(),
+      medicationName: medicationName,
+      eventType: eventType || 'taken',
+      occurredAt: occurredAt,
+      givenBy: 'Patient',
+      notes: notes || ''
+    })
+  }).then(function(response) {
+    if (!response.ok) return false;
+    return response.json().then(function(result) {
+      state = result.state || state;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      return true;
+    });
+  }).catch(function() { return false; });
 }
 
 function recoveryDay() {
@@ -369,7 +396,7 @@ function wireAI() {
     aiSend.disabled = true;
     if (aiMic) aiMic.disabled = true;
     aiInput.placeholder = 'Thinking...';
-    fetch('/api/caregiver/command', {
+    fetch('/api/caregiver-command', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text: text.trim() })
@@ -399,12 +426,13 @@ function wireAI() {
     });
   }
 
-  function applyActions(actions) {
+  async function applyActions(actions) {
     var meds = state.medicationTemplates || [];
     var medIndex = {};
     meds.forEach(function(m) { if (m.name) medIndex[m.name.toLowerCase()] = m; });
 
-    actions.forEach(function(action) {
+    for (var actionIndex = 0; actionIndex < actions.length; actionIndex++) {
+      var action = actions[actionIndex];
       var at = action.given_at || new Date().toISOString();
 
       if (action.type === 'log_medication') {
@@ -414,6 +442,7 @@ function wireAI() {
           if (name.indexOf(k) !== -1 || k.indexOf(name) !== -1) { matched = medIndex[k]; break; }
         }
         if (matched) {
+          if (await recordMedicationEvent(matched.name, 'taken', at, action.notes)) continue;
           matched.lastGivenAt = at;
           matched.givenTime = at;
           matched.dispensed = true;
@@ -434,6 +463,7 @@ function wireAI() {
           if (name.indexOf(k) !== -1 || k.indexOf(name) !== -1) { matched = medIndex[k]; break; }
         }
         if (matched) {
+          if (await recordMedicationEvent(matched.name, 'completed', at, action.notes)) continue;
           matched.dispensed = true;
           matched.nextDueAt = '';
           matched.lastGivenAt = at;
@@ -443,9 +473,11 @@ function wireAI() {
       }
 
       if (action.type === 'log_nausea_med') {
-        meds.forEach(function(m) {
+        for (var nauseaIndex = 0; nauseaIndex < meds.length; nauseaIndex++) {
+          var m = meds[nauseaIndex];
           var nl = (m.name || '').toLowerCase();
           if (nl.indexOf('nausea') !== -1 || nl.indexOf('zofran') !== -1 || nl.indexOf('ondansetron') !== -1) {
+            if (await recordMedicationEvent(m.name, 'taken', at, action.notes)) continue;
             m.lastGivenAt = at;
             m.givenTime = at;
             m.dispensed = true;
@@ -456,7 +488,7 @@ function wireAI() {
               m.nextDueAt = next.toISOString();
             }
           }
-        });
+        }
       }
 
       if (action.type === 'log_pain_score') {
@@ -493,17 +525,19 @@ function wireAI() {
         state.activityLog = state.activityLog || [];
         state.activityLog.push({ type: 'Vital: ' + (action.vital_type || ''), text: String(action.value || ''), at: at });
       }
-    });
+    }
   }
 
-  if (aiApply) aiApply.addEventListener('click', function() {
+  if (aiApply) aiApply.addEventListener('click', async function() {
     if (!pendingActions) return;
-    applyActions(pendingActions);
+    aiApply.disabled = true;
+    await applyActions(pendingActions);
     saveState();
     persistRemoteState();
     render();
     hideConfirm();
     toast('Changes applied');
+    aiApply.disabled = false;
   });
 
   if (aiCancel) aiCancel.addEventListener('click', hideConfirm);

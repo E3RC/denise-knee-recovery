@@ -1,5 +1,7 @@
 # Project Manager Agent
 
+Default model: `5.4 Mini Light`.
+
 ## Job
 
 Keep the Denise recovery project organized, prioritized, and moving.

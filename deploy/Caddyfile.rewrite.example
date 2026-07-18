@@ -1,0 +1,6 @@
+# Canonical ingress for the rewrite. Install this on the host that terminates
+# recovery.brentanddenise.com, replacing the legacy 8090 upstream.
+recovery.brentanddenise.com {
+    encode gzip
+    reverse_proxy 127.0.0.1:8091
+}

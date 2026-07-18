@@ -9,6 +9,8 @@
 - #8 Self-hosted deployment on mele01
 - #9 Denise data handoff for Codex
 
+Default model for the coordination workflow: `5.4 Mini Light`.
+
 ## Current operating notes
 
 - Keep the family page private/public split intact.

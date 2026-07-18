@@ -1,6 +1,7 @@
 # Recovery Agents
 
 These role notes define how ChatGPT and Codex should divide the recovery workflow.
+Default model for both roles: `5.4 Mini Light`.
 
 ## Roles
 

@@ -1,17 +1,28 @@
-const DISPLAY_TIMEZONE = 'America/Indiana/Indianapolis';
+const DISPLAY_TIMEZONE = 'America/New_York';
 
 async function loadUpdates() {
   const latestEl = document.getElementById('latest-content');
   const timelineEl = document.getElementById('timeline');
   const updatedEl = document.getElementById('last-updated');
+  const statusEl = document.getElementById('recovery-status');
 
   try {
-    const response = await fetch('family-updates.json', { cache: 'no-store' });
+    const [response, summaryResponse] = await Promise.all([
+      fetch('family-updates.json', { cache: 'no-store' }),
+      fetch('/api/public-summary', { cache: 'no-store' })
+    ]);
     if (!response.ok) {
       throw new Error(`Could not load updates: ${response.status}`);
     }
 
     const data = await response.json();
+    if (summaryResponse.ok && statusEl) {
+      const summary = await summaryResponse.json();
+      const day = summary.stats && summary.stats.recoveryDay;
+      statusEl.textContent = Number.isFinite(day)
+        ? `Current recovery day: ${day}`
+        : 'Current recovery day: not available';
+    }
     const updates = (data.updates || [])
       .filter(update => String(update.showOnWeb || '').toUpperCase() === 'YES')
       .sort((a, b) => new Date(b.date) - new Date(a.date));

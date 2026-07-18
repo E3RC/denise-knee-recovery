@@ -1,7 +1,7 @@
 const STORAGE_KEY = 'denise-recovery-phase1';
 const DASHBOARD_STATE_URL = '/api/dashboard-state';
 const SURGERY_DATE = '2026-07-06';
-const DISPLAY_TIMEZONE = 'America/Indiana/Indianapolis';
+const DISPLAY_TIMEZONE = 'America/New_York';
 const RECOVERY_FRAMEWORK = {
   phases: [
     {
@@ -339,6 +339,35 @@ function saveState(syncRemote = true) {
   if (syncRemote) {
     dirtySince = Date.now();
     void persistRemoteState();
+  }
+}
+
+function medicationEventId() {
+  if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
+  return 'med-' + Date.now() + '-' + Math.random().toString(16).slice(2);
+}
+
+async function recordMedicationEvent(medicationName, eventType, occurredAt, notes) {
+  try {
+    const response = await fetch('/api/medication-events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        eventId: medicationEventId(),
+        medicationName,
+        eventType: eventType || 'taken',
+        occurredAt,
+        givenBy: 'Caregiver',
+        notes: notes || ''
+      })
+    });
+    if (!response.ok) return false;
+    const result = await response.json();
+    state = normalizeState(result.state || state);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    return true;
+  } catch {
+    return false;
   }
 }
 
@@ -1346,7 +1375,7 @@ if ('serviceWorker' in navigator) {
     aiMic.disabled = true;
     aiInput.placeholder = 'Thinking...';
     try {
-      const resp = await fetch('/api/caregiver/command', {
+      const resp = await fetch('/api/caregiver-command', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: text.trim() })
@@ -1355,9 +1384,14 @@ if ('serviceWorker' in navigator) {
       if (data.actions && data.actions.length > 0) {
         pendingActions = data.actions;
         aiSummary.textContent = data.summary || 'Apply these changes?';
+        aiApply.style.display = '';
         aiConfirm.style.display = 'block';
       } else if (data.error) {
         aiSummary.textContent = 'Sorry: ' + data.error;
+        aiConfirm.style.display = 'block';
+        aiApply.style.display = 'none';
+      } else {
+        aiSummary.textContent = 'I could not turn that into an entry. Please try again.';
         aiConfirm.style.display = 'block';
         aiApply.style.display = 'none';
       }
@@ -1373,12 +1407,13 @@ if ('serviceWorker' in navigator) {
     }
   }
 
-  function applyActions(actions) {
+  async function applyActions(actions) {
     var meds = state.medicationTemplates || [];
     var medIndex = {};
     meds.forEach(function(m) { if (m.name) medIndex[m.name.toLowerCase()] = m; });
 
-    actions.forEach(function(action) {
+    for (var actionIndex = 0; actionIndex < actions.length; actionIndex++) {
+      var action = actions[actionIndex];
       var at = action.given_at || new Date().toISOString();
 
       if (action.type === 'log_medication') {
@@ -1388,6 +1423,7 @@ if ('serviceWorker' in navigator) {
           if (name.indexOf(k) !== -1 || k.indexOf(name) !== -1) { matched = medIndex[k]; break; }
         }
         if (matched) {
+          if (await recordMedicationEvent(matched.name, 'taken', at, action.notes)) continue;
           matched.lastGivenAt = at;
           matched.givenTime = at;
           matched.dispensed = true;
@@ -1408,6 +1444,7 @@ if ('serviceWorker' in navigator) {
           if (name.indexOf(k) !== -1 || k.indexOf(name) !== -1) { matched = medIndex[k]; break; }
         }
         if (matched) {
+          if (await recordMedicationEvent(matched.name, 'completed', at, action.notes)) continue;
           matched.dispensed = true;
           matched.nextDueAt = '';
           matched.lastGivenAt = at;
@@ -1417,9 +1454,11 @@ if ('serviceWorker' in navigator) {
       }
 
       if (action.type === 'log_nausea_med') {
-        meds.forEach(function(m) {
+        for (var nauseaIndex = 0; nauseaIndex < meds.length; nauseaIndex++) {
+          var m = meds[nauseaIndex];
           var nl = (m.name || '').toLowerCase();
           if (nl.indexOf('nausea') !== -1 || nl.indexOf('zofran') !== -1 || nl.indexOf('ondansetron') !== -1) {
+            if (await recordMedicationEvent(m.name, 'taken', at, action.notes)) continue;
             m.lastGivenAt = at;
             m.givenTime = at;
             m.dispensed = true;
@@ -1430,7 +1469,7 @@ if ('serviceWorker' in navigator) {
               m.nextDueAt = next.toISOString();
             }
           }
-        });
+        }
       }
 
       if (action.type === 'log_pain_score') {
@@ -1466,16 +1505,18 @@ if ('serviceWorker' in navigator) {
         state.activityLog = state.activityLog || [];
         state.activityLog.push({ type: 'Vital: ' + (action.vital_type || ''), text: String(action.value || ''), at: at });
       }
-    });
+    }
   }
 
-  aiApply.addEventListener('click', function() {
+  aiApply.addEventListener('click', async function() {
     if (!pendingActions) return;
-    applyActions(pendingActions);
+    aiApply.disabled = true;
+    await applyActions(pendingActions);
     saveState();
     render();
     hideConfirm();
     toast('Changes applied');
+    aiApply.disabled = false;
   });
 
   aiCancel.addEventListener('click', hideConfirm);
@@ -1566,30 +1607,25 @@ void syncRemoteState();
     btnCard.style.display = 'block';
   });
 
-  submitBtn.addEventListener('click', function() {
+  submitBtn.addEventListener('click', async function() {
     var painVal = painSlider ? parseInt(painSlider.value, 10) : 0;
     var notes = notesInput ? notesInput.value.trim() : '';
     var meds = getMorningMeds();
     var now = new Date().toISOString();
-
-    state.activityLog = state.activityLog || [];
-    if (painVal > 0) {
-      state.activityLog.push({ type: 'Pain score', text: 'Pain score: ' + painVal + '/10', at: now });
-    }
-    if (notes) {
-      state.activityLog.push({ type: 'Morning note', text: notes, at: now });
-    }
 
     var medIndex = {};
     (state.medicationTemplates || []).forEach(function(m) {
       if (m.name) medIndex[m.name.toLowerCase()] = m;
     });
 
-    meds.forEach(function(m, i) {
+    for (var medIndexPosition = 0; medIndexPosition < meds.length; medIndexPosition++) {
+      var m = meds[medIndexPosition];
+      var i = medIndexPosition;
       var item = document.getElementById('checkin-med-' + i);
       if (item && item.classList.contains('taken')) {
         var tmpl = medIndex[(m.name || '').toLowerCase()];
         if (tmpl) {
+          if (await recordMedicationEvent(tmpl.name, 'taken', now, 'Taken via morning check-in.')) continue;
           tmpl.lastGivenAt = now;
           tmpl.givenTime = now;
           tmpl.dispensed = true;
@@ -1602,7 +1638,15 @@ void syncRemoteState();
           tmpl.notes = (tmpl.notes || '') + ' | Taken via morning check-in.';
         }
       }
-    });
+    }
+
+    state.activityLog = state.activityLog || [];
+    if (painVal > 0) {
+      state.activityLog.push({ type: 'Pain score', text: 'Pain score: ' + painVal + '/10', at: now });
+    }
+    if (notes) {
+      state.activityLog.push({ type: 'Morning note', text: notes, at: now });
+    }
 
     saveState();
     render();

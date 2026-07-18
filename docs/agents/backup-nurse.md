@@ -1,5 +1,7 @@
 # Backup Nurse Agent
 
+Default model: `5.4 Mini Light`.
+
 ## Job
 
 Watch the med schedule, reminder coverage, and recovery safety checks.

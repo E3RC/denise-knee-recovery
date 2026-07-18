@@ -2,6 +2,8 @@
 
 Family-safe landing page plus a private caregiver dashboard for Denise's recovery.
 
+Default ChatGPT/Codex model for project work: `5.4 Mini Light`.
+
 ## What runs where
 
 - `/` is the public family update landing page.
@@ -41,7 +43,7 @@ If you do not copy `data/recovery.sqlite`, the family page still works, but care
 ## Local run
 
 ```bash
-python3 server.py
+python3 -m uvicorn app.main:app --host 127.0.0.1 --port 8080
 ```
 
 Open:
@@ -56,9 +58,14 @@ cp .env.example .env
 docker compose up --build
 ```
 
-The server stores state in `data/recovery.sqlite`.
-Before you publish, set real values for `ADMIN_TOKEN` and `CAREGIVER_PIN` in `.env`.
-Use long random values and do not reuse the placeholder text from `.env.example`.
+The FastAPI app stores state in `data/recovery.sqlite`. Before publishing, set unique, long random values for `CAREGIVER_PIN` and `SESSION_SECRET` in `.env`.
+The default bind is `127.0.0.1:8080`; place it behind Tailscale, Caddy, or another TLS ingress rather than exposing the container port directly.
+
+To run Pushover reminders with the same application and SQLite database:
+
+```bash
+docker compose --profile reminders up --build
+```
 
 ## Tailscale internet tunnel
 
@@ -119,13 +126,17 @@ For the final cutover, we can add `Caddy` and your domain without changing the a
 
 ## Reminder runner on mele01
 
-On `mele01`, install the systemd timer after the repo is in place:
+The rewrite reminder worker is the preferred live path on `mele01`.
+Do not run the old systemd timer at the same time, or you will get duplicate Pushover notifications.
+
+If you are still using the legacy reminder path by itself, install the systemd timer after the repo is in place:
 
 ```bash
 bash scripts/install-reminders-systemd.sh
 ```
 
 That timer runs `scripts/run-reminders.sh` every minute, which will use Infisical automatically when `INFISICAL_PROJECT_ID` is set.
+If the rewrite reminder container is already running, `scripts/install-reminders-systemd.sh` now refuses to enable the legacy timer unless you explicitly opt in.
 
 ## App startup on mele01
 
@@ -138,30 +149,9 @@ bash scripts/install-app-systemd.sh
 That service starts the Docker app stack on boot and keeps it running.
 When you are ready for the final Caddy/domain cutover, we can replace the exposure layer without changing the app itself.
 
-## Admin updates
-
-Set an admin token before starting the server:
-
-```bash
-export ADMIN_TOKEN='your-long-random-token'
-```
-
-Then send updates with one request:
-
-```bash
-curl -X POST http://localhost:8080/api/admin/update \
-  -H 'Content-Type: application/json' \
-  -H 'X-Admin-Token: your-long-random-token' \
-  -d '{"dashboardState": {...}, "familyUpdates": {...}}'
-```
-
-- `dashboardState` replaces the caregiver dashboard state in SQLite.
-- `familyUpdates` replaces `docs/family-updates.json` with a family-safe feed.
-- Keep admin token use on the host shell or over tailnet-only access. Do not paste it into public docs, issues, or chat logs.
-
 ## Pushover reminders
 
-This repo includes a host-side reminder runner in `scripts/pushover_reminders.py`.
+The Docker reminder worker is the supported path. The host-side `scripts/pushover_reminders.py` is retained only for legacy deployments; it links to caregiver sign-in and does not create magic links.
 
 Suggested setup:
 

@@ -11,3 +11,4 @@ data/*.sqlite-wal
 data/*.json
 data/backups/
 exports/
+session-*.md

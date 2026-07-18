@@ -1,6 +1,6 @@
 var STORAGE_KEY = 'denise-recovery-phase1';
 var API = '/api/dashboard-state';
-var TZ = 'America/Indiana/Indianapolis';
+var TZ = 'America/New_York';
 
 var state = { medicationTemplates: [] };
 var fullState = {};
@@ -268,9 +268,44 @@ function updateCountdowns() {
 
 // ---- Actions ----
 
-function logDose(index) {
+function medicationEventId() {
+  if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
+  return 'med-' + Date.now() + '-' + Math.random().toString(16).slice(2);
+}
+
+async function persistMedicationEvent(med, eventType) {
+  var occurredAt = new Date().toISOString();
+  try {
+    var response = await fetch('/api/medication-events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        eventId: medicationEventId(),
+        medicationName: med.name || '',
+        eventType: eventType || 'taken',
+        occurredAt: occurredAt,
+        givenBy: 'Caregiver'
+      })
+    });
+    if (response.ok) {
+      var result = await response.json();
+      fullState = result.state || fullState;
+      state.medicationTemplates = fullState.medicationTemplates || [];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(fullState));
+      render();
+      return true;
+    }
+  } catch (e) {}
+  return false;
+}
+
+async function logDose(index) {
   var med = state.medicationTemplates[index];
   if (!med) return;
+  if (await persistMedicationEvent(med, 'taken')) {
+    toast((med.name || 'Medication') + ' logged');
+    return;
+  }
   var now = new Date().toISOString();
   med.lastGivenAt = now;
   med.givenTime = now;
@@ -285,10 +320,24 @@ function logDose(index) {
   toast((med.name || 'Medication') + ' logged');
 }
 
-function toggleDispensed(index) {
+async function toggleDispensed(index) {
   var med = state.medicationTemplates[index];
   if (!med) return;
+  if (!med.dispensed && await persistMedicationEvent(med, 'taken')) {
+    toast((med.name || 'Medication') + ' marked dispensed');
+    return;
+  }
   med.dispensed = !med.dispensed;
+  if (med.dispensed) {
+    var now = new Date().toISOString();
+    med.lastGivenAt = now;
+    med.givenTime = now;
+    med.givenBy = 'Caregiver';
+    var interval = parseInt(med.intervalHours || '0', 10);
+    if (interval > 0) {
+      med.nextDueAt = new Date(Date.now() + interval * 3600000).toISOString();
+    }
+  }
   saveAll();
   toast(med.dispensed ? 'Marked dispensed' : 'Unmarked dispensed');
 }

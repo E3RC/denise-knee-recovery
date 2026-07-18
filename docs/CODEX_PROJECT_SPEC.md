@@ -1,6 +1,8 @@
-# Project: Denise Knee Recovery Dashboard
+# Denise Knee Recovery Dashboard - ChatGPT Project History
 
 Build a self-hosted recovery dashboard for a total knee replacement caregiver workflow.
+
+Default model for ChatGPT/Codex project work: `5.4 Mini Light`.
 
 ## Core goal
 
