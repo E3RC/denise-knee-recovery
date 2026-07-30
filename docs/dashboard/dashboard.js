@@ -460,6 +460,7 @@ function normalizeState(next) {
         nextDueAt: String(item?.nextDueAt || ''),
         givenTime: String(item?.givenTime || ''),
         givenBy: String(item?.givenBy || ''),
+        dispensed: Boolean(item?.dispensed || false),
         notes: String(item?.notes || '')
       }))
     : structuredClone(DEFAULT_STATE.medicationTemplates);

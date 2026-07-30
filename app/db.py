@@ -95,36 +95,40 @@ def load_state(settings: Settings) -> tuple[dict[str, Any] | None, str | None]:
 def save_state(settings: Settings, payload: dict[str, Any], now: str) -> None:
     serialized = json.dumps(payload, ensure_ascii=False)
     with connection(settings) as conn:
-        conn.execute("BEGIN IMMEDIATE")
-        current_row = conn.execute("SELECT payload FROM app_state WHERE key = ?", (STATE_KEY,)).fetchone()
-        if current_row:
-            current = json.loads(current_row["payload"])
-            current_meds = {
-                str(med.get("name", "")).casefold(): med
-                for med in current.get("medicationTemplates", [])
-                if isinstance(med, dict)
-            }
-            for incoming in payload.get("medicationTemplates", []):
-                if not isinstance(incoming, dict):
-                    continue
-                saved = current_meds.get(str(incoming.get("name", "")).casefold())
-                if not saved or not saved.get("lastGivenAt"):
-                    continue
-                incoming_time = parse_time(incoming.get("lastGivenAt"), datetime.now())
-                saved_time = parse_time(saved.get("lastGivenAt"), datetime.now())
-                if saved_time > incoming_time:
-                    for field in ("lastGivenAt", "givenTime", "givenBy", "dispensed", "nextDueAt", "stopRule"):
-                        if field in saved:
-                            incoming[field] = saved[field]
-            serialized = json.dumps(payload, ensure_ascii=False)
-        conn.execute(
-            """
-            INSERT INTO app_state(key, payload, updated_at) VALUES (?, ?, ?)
-            ON CONFLICT(key) DO UPDATE SET payload=excluded.payload, updated_at=excluded.updated_at
-            """,
-            (STATE_KEY, serialized, now),
-        )
-        conn.commit()
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            current_row = conn.execute("SELECT payload FROM app_state WHERE key = ?", (STATE_KEY,)).fetchone()
+            if current_row:
+                current = json.loads(current_row["payload"])
+                current_meds = {
+                    str(med.get("name", "")).casefold(): med
+                    for med in current.get("medicationTemplates", [])
+                    if isinstance(med, dict)
+                }
+                for incoming in payload.get("medicationTemplates", []):
+                    if not isinstance(incoming, dict):
+                        continue
+                    saved = current_meds.get(str(incoming.get("name", "")).casefold())
+                    if not saved or not saved.get("lastGivenAt"):
+                        continue
+                    incoming_time = parse_time(incoming.get("lastGivenAt"), datetime.now(tz=timezone.utc))
+                    saved_time = parse_time(saved.get("lastGivenAt"), datetime.now(tz=timezone.utc))
+                    if saved_time > incoming_time:
+                        for field in ("lastGivenAt", "givenTime", "givenBy", "dispensed", "nextDueAt", "stopRule"):
+                            if field in saved:
+                                incoming[field] = saved[field]
+                serialized = json.dumps(payload, ensure_ascii=False)
+            conn.execute(
+                """
+                INSERT INTO app_state(key, payload, updated_at) VALUES (?, ?, ?)
+                ON CONFLICT(key) DO UPDATE SET payload=excluded.payload, updated_at=excluded.updated_at
+                """,
+                (STATE_KEY, serialized, now),
+            )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
 
 
 def parse_time(value: object, fallback: datetime) -> datetime:
@@ -167,7 +171,7 @@ def record_medication_event(
             "INSERT INTO medication_events VALUES (?, ?, ?, ?, ?, ?, ?)",
             (event_id, match.get("name", medication_name), event_type, occurred_at, now, given_by, notes),
         )
-        previous = parse_time(match.get("lastGivenAt"), datetime.min.replace(tzinfo=None)) if match.get("lastGivenAt") else None
+        previous = parse_time(match.get("lastGivenAt"), datetime.min.replace(tzinfo=timezone.utc)) if match.get("lastGivenAt") else None
         occurred = parse_time(occurred_at, datetime.now())
         if previous is None or occurred >= previous:
             match.update(lastGivenAt=occurred_at, givenTime=occurred_at, givenBy=given_by, dispensed=True)

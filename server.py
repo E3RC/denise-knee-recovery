@@ -118,7 +118,7 @@ def resolve_static_path(pathname: str) -> Path | None:
 
     try:
         resolved = candidate.resolve()
-    except FileNotFoundError:
+    except (OSError, FileNotFoundError):
         return None
 
     try:

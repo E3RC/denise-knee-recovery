@@ -21,6 +21,8 @@ def _best_medication(text: str, medications: list[dict[str, Any]]) -> tuple[dict
         if not name:
             continue
         target = _clean(name)
+        if not target:
+            continue
         target_words = target.split()
         primary = target_words[0] if target_words else target
         score = max(

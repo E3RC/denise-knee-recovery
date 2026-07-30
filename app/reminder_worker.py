@@ -31,7 +31,8 @@ def due_medications(settings, now: datetime) -> list[dict]:
         except ValueError:
             continue
         is_prn = str(med.get("scheduled", "")).upper().startswith("PRN")
-        if due <= now and not (is_prn and due < now):
+        # PRN meds fire only during the first window after becoming due, not when overdue
+        if due <= now and not (is_prn and due < now - timedelta(minutes=5)):
             results.append({"med": med, "due": due})
     return results
 

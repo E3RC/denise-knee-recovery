@@ -29,7 +29,11 @@ app.mount("/assets", StaticFiles(directory=settings.docs_dir), name="assets")
 
 
 def page(path: str) -> FileResponse:
-    target = settings.docs_dir / path
+    target = (settings.docs_dir / path).resolve()
+    try:
+        target.relative_to(settings.docs_dir.resolve())
+    except ValueError:
+        return JSONResponse({"error": "not found"}, status_code=404)
     if not target.is_file():
         return JSONResponse({"error": "not found"}, status_code=404)
     return FileResponse(target)
