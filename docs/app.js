@@ -1,86 +1,106 @@
-const DISPLAY_TIMEZONE = 'America/New_York';
+const DISPLAY_TIMEZONE = 'America/Indiana/Indianapolis';
 
 async function loadUpdates() {
-  const latestEl = document.getElementById('latest-content');
-  const timelineEl = document.getElementById('timeline');
+  const statsGridEl = document.getElementById('stats-grid');
+  const phaseEl = document.getElementById('phase-copy');
+  const checksEl = document.getElementById('checks-list');
   const updatedEl = document.getElementById('last-updated');
-  const statusEl = document.getElementById('recovery-status');
+  const freshnessEl = document.getElementById('freshness-note');
 
   try {
-    const [response, summaryResponse] = await Promise.all([
-      fetch('family-updates.json', { cache: 'no-store' }),
-      fetch('/api/public-summary', { cache: 'no-store' })
-    ]);
+    const response = await fetch('/api/public-summary', { cache: 'no-store' });
     if (!response.ok) {
-      throw new Error(`Could not load updates: ${response.status}`);
+      throw new Error(`Could not load public summary: ${response.status}`);
     }
 
     const data = await response.json();
-    if (summaryResponse.ok && statusEl) {
-      const summary = await summaryResponse.json();
-      const day = summary.stats && summary.stats.recoveryDay;
-      statusEl.textContent = Number.isFinite(day)
-        ? `Current recovery day: ${day}`
-        : 'Current recovery day: not available';
-    }
-    const updates = (data.updates || [])
-      .filter(update => String(update.showOnWeb || '').toUpperCase() === 'YES')
-      .sort((a, b) => new Date(b.date) - new Date(a.date));
-
-    updatedEl.textContent = data.lastUpdated
-      ? `Last updated: ${formatDateTime(data.lastUpdated)}`
-      : 'Last updated: not yet published';
-
-    if (!updates.length) {
-      latestEl.innerHTML = '<p class="muted">No family updates are published yet.</p>';
-      timelineEl.innerHTML = '<p class="muted">Check back soon.</p>';
-      return;
+    updatedEl.textContent = data.asOf
+      ? `Current stats as of ${formatDateTime(data.asOf)}`
+      : 'Current stats as of now';
+    if (freshnessEl) {
+      freshnessEl.textContent = buildFreshnessNote(data);
+      freshnessEl.classList.remove('stale');
     }
 
-    const latest = updates[0];
-    latestEl.innerHTML = renderLatest(latest);
-    timelineEl.innerHTML = updates.map(renderTimelineItem).join('');
+    statsGridEl.innerHTML = renderStatsGrid(data);
+    phaseEl.innerHTML = renderPhase(data);
+    checksEl.innerHTML = renderChecks(data.recentChecks || []);
   } catch (error) {
-    updatedEl.textContent = 'Updates are temporarily unavailable.';
-    latestEl.innerHTML = '<p class="muted">The update feed could not be loaded. Please check back later.</p>';
-    timelineEl.innerHTML = '';
+    updatedEl.textContent = 'Current stats are temporarily unavailable.';
+    if (freshnessEl) {
+      freshnessEl.textContent = 'The live recovery snapshot could not be reached. The caregiver dashboard is still separate.';
+      freshnessEl.classList.add('stale');
+    }
+    statsGridEl.innerHTML = '<p class="muted">The live snapshot could not be loaded. Please check back later.</p>';
+    phaseEl.innerHTML = '<p class="muted">Phase details are temporarily unavailable.</p>';
+    checksEl.innerHTML = '';
     console.error(error);
   }
 }
 
-function renderLatest(update) {
-  return `
-    <h3>${escapeHtml(update.headline || 'Recovery update')}</h3>
-    <p class="update-meta">${formatDate(update.date)} · Surgery day ${escapeHtml(update.dayNumber ?? '')}</p>
-    <p>${escapeHtml(update.publicUpdate || '')}</p>
-    <div class="latest-grid">
-      ${renderStat('Pain trend', update.painTrend)}
-      ${renderStat('Mobility', update.mobility)}
-      ${renderStat('PT / Milestone', update.ptMilestone)}
-      ${renderStat('Mood', update.mood)}
-      ${renderStat('Visitors / Needs', update.needsVisitors)}
-    </div>
-  `;
+function buildFreshnessNote(data) {
+  const stats = data?.stats || {};
+  const patient = data?.patient || {};
+  const parts = [];
+  if (typeof stats.recoveryDay === 'number') {
+    parts.push(`Recovery day ${stats.recoveryDay}`);
+  }
+  if (patient.surgeryDate) {
+    parts.push(`Surgery ${formatDate(patient.surgeryDate)}`);
+  }
+  return parts.length ? `${parts.join(' ? ')} ? live from the dashboard state` : 'Live from the dashboard state';
 }
 
-function renderTimelineItem(update) {
-  return `
-    <article class="update-card">
-      <span class="badge">Day ${escapeHtml(update.dayNumber ?? '')}</span>
-      <h3>${escapeHtml(update.headline || 'Recovery update')}</h3>
-      <p class="update-meta">${formatDate(update.date)}</p>
-      <p>${escapeHtml(update.publicUpdate || '')}</p>
-    </article>
-  `;
-}
-
-function renderStat(label, value) {
-  return `
+function renderStatsGrid(data) {
+  const patient = data?.patient || {};
+  const stats = data?.stats || {};
+  return [
+    ['Patient', patient.name || 'Denise'],
+    ['Procedure', patient.procedure || 'Recovery'],
+    ['Recovery day', typeof stats.recoveryDay === 'number' ? `Day ${stats.recoveryDay}` : '?'],
+    ['Surgery date', patient.surgeryDate ? formatDate(patient.surgeryDate) : '?'],
+  ].map(([label, value]) => `
     <div class="stat">
       <span class="stat-label">${escapeHtml(label)}</span>
-      <span class="stat-value">${escapeHtml(value || '—')}</span>
+      <span class="stat-value">${escapeHtml(value)}</span>
     </div>
+  `).join('');
+}
+
+function renderPhase(data) {
+  const phase = data?.stats?.phase || {};
+  return `
+    <p class="phase-range">${escapeHtml(phase.range || '?')}</p>
+    <h3>${escapeHtml(phase.label || 'Recovery')}</h3>
+    <p class="phase-summary">${escapeHtml(phase.summary || 'Current recovery details are updating.')}</p>
   `;
+}
+
+function renderChecks(checks) {
+  if (!checks.length) {
+    return '<p class="muted">No public checkpoints have been logged yet.</p>';
+  }
+  return checks.map(check => `
+    <div class="check-item">
+      <span class="check-label">${escapeHtml(labelForCheck(check.id))}</span>
+      <span class="check-time">${formatDateTime(check.at)}</span>
+    </div>
+  `).join('');
+}
+
+function labelForCheck(id) {
+  const labels = {
+    'med-check': 'Medication check',
+    'hydration-check': 'Hydration',
+    'walk-check': 'Walk done',
+    'exercise-check': 'Exercises',
+    'ice-check': 'Ice and elevate',
+    'meal-check': 'Meal',
+    'incision-check': 'Incision check',
+    'rest-check': 'Rest and elevate',
+    'bowel-check': 'Bowel check',
+  };
+  return labels[id] || id || 'Checkpoint';
 }
 
 function formatDate(value) {

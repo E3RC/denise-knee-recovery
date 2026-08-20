@@ -7,6 +7,7 @@
   --line: #dbe3ef;
   --accent: #2563eb;
   --accent-soft: #e8f0ff;
+  --accent-strong: #1d4ed8;
   --good: #047857;
   --warn: #b45309;
 }
@@ -20,6 +21,10 @@ body {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: linear-gradient(180deg, #eaf1fb 0%, var(--bg) 30%, var(--bg) 100%);
   color: var(--text);
+}
+
+a {
+  color: inherit;
 }
 
 .page {
@@ -75,9 +80,98 @@ h1 {
   margin-bottom: 12px;
 }
 
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 20px 0 14px;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  border-radius: 12px;
+  padding: 10px 16px;
+  font-weight: 800;
+  text-decoration: none;
+  border: 1px solid transparent;
+}
+
+.button-primary {
+  background: var(--accent-strong);
+  color: #fff;
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.22);
+}
+
+.button-secondary {
+  background: #fff;
+  color: var(--accent-strong);
+  border-color: var(--line);
+}
+
+.status-note {
+  background: #f8fbff;
+}
+
+.status-copy {
+  margin-bottom: 0;
+  color: var(--muted);
+  font-weight: 650;
+}
+
+.status-copy.stale {
+  color: var(--warn);
+}
+
 h2 {
   font-size: 1.35rem;
   margin-bottom: 16px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+}
+
+.phase-range {
+  color: var(--accent);
+  font-weight: 800;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  font-size: .78rem;
+}
+
+.phase-summary {
+  margin-bottom: 0;
+  color: var(--muted);
+}
+
+.check-list {
+  display: grid;
+  gap: 10px;
+}
+
+.check-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fbfdff;
+}
+
+.check-label {
+  font-weight: 700;
+}
+
+.check-time {
+  color: var(--muted);
+  white-space: nowrap;
 }
 
 .intro, .last-updated, .muted {
@@ -165,5 +259,22 @@ h2 {
   .card, .hero {
     padding: 18px;
     border-radius: 18px;
+  }
+
+  .hero-actions {
+    flex-direction: column;
+  }
+
+  .button {
+    width: 100%;
+  }
+
+  .check-item {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .check-time {
+    white-space: normal;
   }
 }

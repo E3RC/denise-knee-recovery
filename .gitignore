@@ -3,6 +3,8 @@ __pycache__/
 .env
 .env.*
 !.env.example
+!archive/.env.rewrite.example
+# Runtime data files are ignored normally...
 data/*.sqlite
 data/*.sqlite-shm
 data/*.sqlite-wal
@@ -10,5 +12,13 @@ data/*.sqlite-wal
 *.sqlite.backup
 data/*.json
 data/backups/
+# ...but un-ignored for the archive commit so the archived site ships with data
+!data/recovery.sqlite
+!data/reminders.json
+!data/reminders.original.json
+!data/reminders.rewrite.json
+!data/reminder-state.json
+!data/.gitkeep
+!archive/
 exports/
 session-*.md

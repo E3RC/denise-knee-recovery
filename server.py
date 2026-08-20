@@ -56,6 +56,20 @@ def init_db() -> None:
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS medication_events (
+              event_id TEXT PRIMARY KEY,
+              medication_name TEXT NOT NULL,
+              event_type TEXT NOT NULL CHECK(event_type IN ('taken', 'completed')),
+              occurred_at TEXT NOT NULL,
+              recorded_at TEXT NOT NULL,
+              given_by TEXT NOT NULL DEFAULT '',
+              notes TEXT NOT NULL DEFAULT ''
+            )
+            """
+        )
+        conn.execute("CREATE INDEX IF NOT EXISTS medication_events_med_time ON medication_events(medication_name, occurred_at)")
 
 
 def load_state() -> dict | None:
@@ -74,8 +88,23 @@ def load_state() -> dict | None:
 
 
 def save_state(payload: dict) -> None:
-    serialized = json.dumps(payload, ensure_ascii=False)
-    with sqlite3.connect(DB_PATH) as conn:
+    # Legacy whole-dashboard saves may be stale. Never let them roll medication clocks back.
+    with sqlite3.connect(DB_PATH, timeout=10) as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        row = conn.execute("SELECT payload FROM app_state WHERE key = ?", (STATE_KEY,)).fetchone()
+        current = json.loads(row[0]) if row else {}
+        current_meds = {str(m.get("name", "")).casefold(): m for m in current.get("medicationTemplates", [])}
+        for incoming in payload.get("medicationTemplates", []):
+            saved = current_meds.get(str(incoming.get("name", "")).casefold())
+            if not saved or not saved.get("lastGivenAt"):
+                continue
+            incoming_time = _parse_event_time(incoming.get("lastGivenAt")) if incoming.get("lastGivenAt") else None
+            saved_time = _parse_event_time(saved.get("lastGivenAt"))
+            if incoming_time is None or saved_time > incoming_time:
+                for field in ("lastGivenAt", "givenTime", "givenBy", "dispensed", "nextDueAt", "stopRule"):
+                    if field in saved:
+                        incoming[field] = saved[field]
+        serialized = json.dumps(payload, ensure_ascii=False)
         conn.execute(
             """
             INSERT INTO app_state (key, payload, updated_at)
@@ -89,6 +118,56 @@ def save_state(payload: dict) -> None:
         conn.commit()
 
 
+
+def _parse_event_time(value: object) -> datetime:
+    text = str(value or "").strip()
+    if not text:
+        return datetime.now(ET)
+    parsed = datetime.fromisoformat(text[:-1] + "+00:00" if text.endswith("Z") else text)
+    if parsed.tzinfo is None:
+        raise ValueError("occurredAt must include a timezone offset")
+    return parsed
+
+
+def _state_updated_at() -> str | None:
+    with sqlite3.connect(DB_PATH) as conn:
+        row = conn.execute("SELECT updated_at FROM app_state WHERE key = ?", (STATE_KEY,)).fetchone()
+    return str(row[0]) if row else None
+
+
+def record_medication_event(payload: dict) -> tuple[dict, bool]:
+    """Append an idempotent dose event and atomically update its state projection."""
+    event_id = str(payload.get("eventId") or "").strip()
+    med_name = str(payload.get("medicationName") or "").strip()
+    event_type = str(payload.get("eventType") or "taken").strip()
+    occurred = _parse_event_time(payload.get("occurredAt"))
+    occurred_at = occurred.isoformat(timespec="seconds")
+    if not event_id or len(event_id) > 100: raise ValueError("eventId is required")
+    if not med_name: raise ValueError("medicationName is required")
+    if event_type not in ("taken", "completed"): raise ValueError("invalid eventType")
+    with sqlite3.connect(DB_PATH, timeout=10) as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        duplicate = conn.execute("SELECT 1 FROM medication_events WHERE event_id=?", (event_id,)).fetchone()
+        row = conn.execute("SELECT payload FROM app_state WHERE key=?", (STATE_KEY,)).fetchone()
+        state = json.loads(row[0]) if row else {}
+        if duplicate: return state, False
+        match = next((m for m in state.get("medicationTemplates", []) if str(m.get("name", "")).casefold()==med_name.casefold()), None)
+        if match is None: raise ValueError("unknown medication")
+        given_by = str(payload.get("givenBy") or "Caregiver")
+        conn.execute("INSERT INTO medication_events VALUES (?,?,?,?,?,?,?)", (event_id, str(match.get("name")), event_type, occurred_at, now_iso(), given_by, str(payload.get("notes") or "")))
+        previous = _parse_event_time(match.get("lastGivenAt")) if match.get("lastGivenAt") else None
+        if previous is None or occurred >= previous:
+            match.update(lastGivenAt=occurred_at, givenTime=occurred_at, givenBy=given_by, dispensed=True)
+            if event_type == "completed":
+                match.update(nextDueAt="", stopRule="Completed")
+            else:
+                interval = int(match.get("intervalHours", 0) or 0)
+                match["nextDueAt"] = (occurred + timedelta(hours=interval)).isoformat(timespec="seconds") if interval > 0 else ""
+        conn.execute("INSERT INTO app_state VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET payload=excluded.payload, updated_at=excluded.updated_at", (STATE_KEY, json.dumps(state, ensure_ascii=False), now_iso()))
+        conn.commit()
+    return state, True
+
+
 def write_json_file(path: Path, payload: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     data = json.dumps(payload, indent=2, ensure_ascii=False).encode("utf-8") + b"\n"
@@ -98,12 +177,94 @@ def write_json_file(path: Path, payload: object) -> None:
     temp_path.replace(path)
 
 
+def _current_phase_for_day(day_number: int) -> dict[str, object]:
+    phases = [
+        {
+            "label": "Surgery day",
+            "range": "Day 0-1",
+            "summary": "Focus on rest, walking as tolerated, icing, elevation, hydration, and getting home safely.",
+        },
+        {
+            "label": "Early home recovery",
+            "range": "Days 2-7",
+            "summary": "Short frequent walks, steady hydration, ice, elevation, and watching the incision.",
+        },
+        {
+            "label": "Week 2",
+            "range": "Days 8-14",
+            "summary": "Keep the rehab rhythm steady while range of motion and confidence build.",
+        },
+        {
+            "label": "Weeks 3 to 6",
+            "range": "Days 15-42",
+            "summary": "Track mobility, swelling, and follow-up progress without rushing heavier activity.",
+        },
+        {
+            "label": "Longer recovery",
+            "range": "Day 43+",
+            "summary": "Progress keeps building over months, with milestones and follow-up guiding the pace.",
+        },
+    ]
+    if day_number <= 1:
+        return phases[0]
+    if day_number <= 7:
+        return phases[1]
+    if day_number <= 14:
+        return phases[2]
+    if day_number <= 42:
+        return phases[3]
+    return phases[4]
+
+
+def build_public_summary(state: dict | None, *, updated_at: str | None = None) -> dict[str, object]:
+    state = state or {}
+    patient = state.get("patient") if isinstance(state.get("patient"), dict) else {}
+    surgery_date_text = str(patient.get("surgeryDate") or "").strip()
+    as_of = updated_at or now_iso()
+    try:
+        as_of_dt = _parse_event_time(as_of)
+    except Exception:
+        as_of_dt = datetime.now(ET)
+        as_of = as_of_dt.isoformat(timespec="seconds")
+    recovery_day = None
+    if surgery_date_text:
+        try:
+            surgery_dt = datetime.fromisoformat(f"{surgery_date_text}T12:00:00-04:00")
+            recovery_day = max(0, (as_of_dt.date() - surgery_dt.date()).days)
+        except ValueError:
+            recovery_day = None
+    phase = _current_phase_for_day(int(recovery_day or 0)) if recovery_day is not None else {"label": "Recovery", "range": "?", "summary": "Current recovery details are updating."}
+    quick_checks = state.get("quickChecks") if isinstance(state.get("quickChecks"), list) else []
+    recent_checks = []
+    for entry in quick_checks[:8]:
+        if not isinstance(entry, dict):
+            continue
+        recent_checks.append({
+            "id": str(entry.get("id", "")),
+            "at": str(entry.get("at", "")),
+        })
+    return {
+        "asOf": as_of,
+        "patient": {
+            "name": str(patient.get("name") or "Denise"),
+            "procedure": str(patient.get("procedure") or "Recovery"),
+            "surgeryDate": surgery_date_text,
+        },
+        "stats": {
+            "recoveryDay": recovery_day,
+            "phase": phase,
+            "quickChecksLogged": len(quick_checks),
+        },
+        "recentChecks": recent_checks,
+    }
+
+
 def resolve_static_path(pathname: str) -> Path | None:
     if pathname == "/":
         candidate = DOCS_DIR / "index.html"
     elif pathname == "/caregiver":
         candidate = DOCS_DIR / "caregiver" / "index.html"
-    elif pathname == "/dashboard":
+    elif pathname == "/dashboard" or pathname.startswith("/dashboard/meds"):
         candidate = DOCS_DIR / "dashboard" / "index.html"
     elif pathname == "/patient":
         candidate = DOCS_DIR / "patient" / "index.html"
@@ -364,6 +525,14 @@ class Handler(BaseHTTPRequestHandler):
             self._json(HTTPStatus.OK, {"ok": True, "db": str(DB_PATH)}, send_body=send_body)
             return
 
+        if pathname == "/api/public-summary":
+            state = load_state()
+            if state is None:
+                self._json(HTTPStatus.NOT_FOUND, {"error": "dashboard state not found"}, send_body=send_body)
+                return
+            self._json(HTTPStatus.OK, build_public_summary(state, updated_at=_state_updated_at()), send_body=send_body)
+            return
+
         if pathname == "/api/dashboard-state":
             if not self._has_caregiver_access():
                 self._json(HTTPStatus.UNAUTHORIZED, {"error": "caregiver sign-in required"}, send_body=send_body)
@@ -406,6 +575,24 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(HTTPStatus.UNAUTHORIZED, {"error": "caregiver sign-in required"})
                 return
             self._handle_caregiver_command()
+            return
+
+        if pathname == "/api/medication-events":
+            if not self._has_caregiver_access():
+                self._json(HTTPStatus.UNAUTHORIZED, {"error": "caregiver sign-in required"})
+                return
+            payload = self._read_json_body()
+            if payload is None:
+                return
+            if not isinstance(payload, dict):
+                self._json(HTTPStatus.BAD_REQUEST, {"error": "event must be an object"})
+                return
+            try:
+                state, created = record_medication_event(payload)
+            except (ValueError, TypeError) as exc:
+                self._json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                return
+            self._json(HTTPStatus.CREATED if created else HTTPStatus.OK, {"ok": True, "created": created, "state": state})
             return
 
         if pathname == "/api/admin/update":
@@ -466,8 +653,36 @@ class Handler(BaseHTTPRequestHandler):
         self._json(HTTPStatus.OK, {"ok": True}, extra_headers={"Set-Cookie": cookie})
 
     def _handle_magic_link(self, parsed) -> None:
-        # One-time links are implemented by the FastAPI app and its SQLite token ledger.
-        self._redirect("/caregiver")
+        import hashlib, hmac, time
+        from urllib.parse import quote
+        params = dict(q.split("=", 1) for q in parsed.query.split("&") if "=" in q)
+        token = unquote(params.get("t", ""))
+
+        if not token or not CAREGIVER_PIN:
+            self._redirect("/caregiver")
+            return
+
+        try:
+            parts = token.split(":", 1)
+            expiry = int(parts[0])
+            sig = parts[1]
+        except (ValueError, IndexError):
+            self._redirect("/caregiver")
+            return
+
+        payload = f"{expiry}"
+        expected = hmac.new(CAREGIVER_PIN.encode(), payload.encode(), hashlib.sha256).hexdigest()[:16]
+        if time.time() > expiry or not hmac.compare_digest(expected, sig):
+            self._redirect("/caregiver")
+            return
+
+        cookie = f"{SESSION_COOKIE_NAME}={SESSION_TOKEN}; Path=/; HttpOnly; SameSite=Lax"
+        med = unquote(params.get("m", ""))
+        target = f"/dashboard/meds/?med={quote(med)}" if med else "/dashboard/meds/"
+        self.send_response(HTTPStatus.FOUND)
+        self.send_header("Location", target)
+        self.send_header("Set-Cookie", cookie)
+        self.end_headers()
 
     def _handle_caregiver_command(self) -> None:
         payload = self._read_json_body()

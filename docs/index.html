@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Knee'd to Know | Family Updates</title>
+  <title>Knee'd to Know | Current Stats</title>
   <link rel="icon" href="/icon.svg" />
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css?v=20260711c" />
 </head>
 <body>
   <main class="page">
@@ -14,27 +14,40 @@
         <img src="icon.svg" alt="Knee'd to Know logo" class="brand-logo" />
         <div>
           <p class="eyebrow">Knee'd to Know</p>
-          <h1>How Denise Is Doing</h1>
+          <h1>Current Stats as Of</h1>
         </div>
       </div>
-      <p class="intro">Simple family updates from Brent. This page intentionally avoids medication details and private medical notes.</p>
-      <p id="recovery-status" class="last-updated">Loading recovery status...</p>
-      <p id="last-updated" class="last-updated">Loading updates...</p>
+      <p class="intro">A public family snapshot of Denise's recovery. Medication timing, symptoms, and caregiver notes stay private.</p>
+      <div class="hero-actions" aria-label="Recovery tools">
+        <a class="button button-primary" href="/caregiver">Caregiver dashboard</a>
+        <a class="button button-secondary" href="#stats">View current stats</a>
+      </div>
+      <p id="last-updated" class="last-updated">Loading current stats...</p>
     </section>
 
-    <section id="latest" class="card latest" aria-live="polite">
-      <h2>Latest Update</h2>
-      <div id="latest-content">Loading...</div>
+    <section class="card status-note" aria-labelledby="status-heading">
+      <h2 id="status-heading">Public Snapshot</h2>
+      <p id="freshness-note" class="status-copy">Checking the live recovery state...</p>
     </section>
 
-    <section class="card">
-      <h2>Recovery Timeline</h2>
-      <div id="timeline" class="timeline">Loading...</div>
+    <section id="stats" class="card" aria-live="polite">
+      <h2>Snapshot</h2>
+      <div id="stats-grid" class="stats-grid">Loading...</div>
+    </section>
+
+    <section class="card" aria-labelledby="phase-heading">
+      <h2 id="phase-heading">Current Phase</h2>
+      <div id="phase-copy" class="phase-copy">Loading...</div>
+    </section>
+
+    <section class="card" aria-labelledby="checks-heading">
+      <h2 id="checks-heading">Recent Public Checkpoints</h2>
+      <div id="checks-list" class="check-list">Loading...</div>
     </section>
 
     <section class="card privacy-note">
       <h2>About this page</h2>
-      <p>This page is for family-friendly updates only. It does not show Denise's medication schedule, private symptoms, doctor contacts, or detailed caregiver notes.</p>
+      <p>This page shows only public-safe recovery stats. It does not show Denise's medication schedule, private symptoms, doctor contacts, or detailed caregiver notes.</p>
     </section>
   </main>
 

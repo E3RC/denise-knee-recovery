@@ -1,7 +1,7 @@
 const STORAGE_KEY = 'denise-recovery-phase1';
 const DASHBOARD_STATE_URL = '/api/dashboard-state';
 const SURGERY_DATE = '2026-07-06';
-const DISPLAY_TIMEZONE = 'America/New_York';
+const DISPLAY_TIMEZONE = 'America/Indiana/Indianapolis';
 const RECOVERY_FRAMEWORK = {
   phases: [
     {
@@ -342,33 +342,21 @@ function saveState(syncRemote = true) {
   }
 }
 
-function medicationEventId() {
-  if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
-  return 'med-' + Date.now() + '-' + Math.random().toString(16).slice(2);
-}
-
-async function recordMedicationEvent(medicationName, eventType, occurredAt, notes) {
-  try {
-    const response = await fetch('/api/medication-events', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        eventId: medicationEventId(),
-        medicationName,
-        eventType: eventType || 'taken',
-        occurredAt,
-        givenBy: 'Caregiver',
-        notes: notes || ''
-      })
-    });
-    if (!response.ok) return false;
-    const result = await response.json();
-    state = normalizeState(result.state || state);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    return true;
-  } catch {
-    return false;
-  }
+async function recordMedicationEvent(medicationName, occurredAt, options = {}) {
+  const eventId = options.eventId || (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
+  const response = await fetch('/api/medication-events', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      eventId, medicationName, occurredAt,
+      eventType: options.eventType || 'taken',
+      givenBy: options.givenBy || 'Caregiver',
+      notes: options.notes || ''
+    })
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error || 'Medication was not saved');
+  return result;
 }
 
 function exportState() {
@@ -663,7 +651,14 @@ function renderNextMeds() {
 function renderMedicationsList() {
   var container = document.getElementById('medications-list');
   if (!container) return;
+  var requested = new URLSearchParams(window.location.search).get('med') || '';
   var meds = state.medicationTemplates || [];
+  if (requested) {
+    var exact = meds.filter(function(m) { return (m.name || '').toLowerCase() === requested.toLowerCase(); });
+    if (exact.length) meds = exact;
+    var details = container.closest('details');
+    if (details) details.open = true;
+  }
   container.innerHTML = meds.map(function(m) {
     var name = m.name || 'Unnamed';
     var dose = m.dose || '';
@@ -673,9 +668,29 @@ function renderMedicationsList() {
       '<div class="item-head"><strong>' + escapeHtml(name) + '</strong> <span class="tag">' + escapeHtml(dose) + '</span></div>' +
       '<div class="small">Last: ' + escapeHtml(last) + ' | Next: ' + escapeHtml(nextDue) + '</div>' +
       (m.notes ? '<div class="small" style="color:var(--muted)">' + escapeHtml(m.notes.slice(-100)) + '</div>' : '') +
+      '<button type="button" class="primary" data-med-taken="' + escapeHtml(name) + '" style="margin-top:10px">Taken now</button>' +
       '</div>';
-  }).join('') || '<p class="small">No medications configured.</p>';
+  }).join('') || '<p class="small">Medication not found. Return to the dashboard and select it from the medication list.</p>';
+  if (requested) setTimeout(function() { container.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 0);
 }
+
+document.addEventListener('click', async function(event) {
+  var button = event.target.closest('[data-med-taken]');
+  if (!button) return;
+  button.disabled = true;
+  button.textContent = 'Saving...';
+  try {
+    var result = await recordMedicationEvent(button.dataset.medTaken, new Date().toISOString(), { givenBy: 'Caregiver (Pushover link)' });
+    state = normalizeState(result.state);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    render();
+    toast(button.dataset.medTaken + ' saved as taken');
+  } catch (error) {
+    button.disabled = false;
+    button.textContent = 'Taken now';
+    toast('NOT SAVED: ' + error.message);
+  }
+});
 
 function renderPatientForm() {
   const patient = state.patient || DEFAULT_STATE.patient;
@@ -1375,7 +1390,7 @@ if ('serviceWorker' in navigator) {
     aiMic.disabled = true;
     aiInput.placeholder = 'Thinking...';
     try {
-      const resp = await fetch('/api/caregiver-command', {
+      const resp = await fetch('/api/caregiver/command', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: text.trim() })
@@ -1384,14 +1399,9 @@ if ('serviceWorker' in navigator) {
       if (data.actions && data.actions.length > 0) {
         pendingActions = data.actions;
         aiSummary.textContent = data.summary || 'Apply these changes?';
-        aiApply.style.display = '';
         aiConfirm.style.display = 'block';
       } else if (data.error) {
         aiSummary.textContent = 'Sorry: ' + data.error;
-        aiConfirm.style.display = 'block';
-        aiApply.style.display = 'none';
-      } else {
-        aiSummary.textContent = 'I could not turn that into an entry. Please try again.';
         aiConfirm.style.display = 'block';
         aiApply.style.display = 'none';
       }
@@ -1407,13 +1417,12 @@ if ('serviceWorker' in navigator) {
     }
   }
 
-  async function applyActions(actions) {
+  function applyActions(actions) {
     var meds = state.medicationTemplates || [];
     var medIndex = {};
     meds.forEach(function(m) { if (m.name) medIndex[m.name.toLowerCase()] = m; });
 
-    for (var actionIndex = 0; actionIndex < actions.length; actionIndex++) {
-      var action = actions[actionIndex];
+    actions.forEach(function(action) {
       var at = action.given_at || new Date().toISOString();
 
       if (action.type === 'log_medication') {
@@ -1423,7 +1432,6 @@ if ('serviceWorker' in navigator) {
           if (name.indexOf(k) !== -1 || k.indexOf(name) !== -1) { matched = medIndex[k]; break; }
         }
         if (matched) {
-          if (await recordMedicationEvent(matched.name, 'taken', at, action.notes)) continue;
           matched.lastGivenAt = at;
           matched.givenTime = at;
           matched.dispensed = true;
@@ -1444,7 +1452,6 @@ if ('serviceWorker' in navigator) {
           if (name.indexOf(k) !== -1 || k.indexOf(name) !== -1) { matched = medIndex[k]; break; }
         }
         if (matched) {
-          if (await recordMedicationEvent(matched.name, 'completed', at, action.notes)) continue;
           matched.dispensed = true;
           matched.nextDueAt = '';
           matched.lastGivenAt = at;
@@ -1454,11 +1461,9 @@ if ('serviceWorker' in navigator) {
       }
 
       if (action.type === 'log_nausea_med') {
-        for (var nauseaIndex = 0; nauseaIndex < meds.length; nauseaIndex++) {
-          var m = meds[nauseaIndex];
+        meds.forEach(function(m) {
           var nl = (m.name || '').toLowerCase();
           if (nl.indexOf('nausea') !== -1 || nl.indexOf('zofran') !== -1 || nl.indexOf('ondansetron') !== -1) {
-            if (await recordMedicationEvent(m.name, 'taken', at, action.notes)) continue;
             m.lastGivenAt = at;
             m.givenTime = at;
             m.dispensed = true;
@@ -1469,7 +1474,7 @@ if ('serviceWorker' in navigator) {
               m.nextDueAt = next.toISOString();
             }
           }
-        }
+        });
       }
 
       if (action.type === 'log_pain_score') {
@@ -1505,18 +1510,31 @@ if ('serviceWorker' in navigator) {
         state.activityLog = state.activityLog || [];
         state.activityLog.push({ type: 'Vital: ' + (action.vital_type || ''), text: String(action.value || ''), at: at });
       }
-    }
+    });
   }
 
   aiApply.addEventListener('click', async function() {
     if (!pendingActions) return;
     aiApply.disabled = true;
-    await applyActions(pendingActions);
-    saveState();
-    render();
-    hideConfirm();
-    toast('Changes applied');
-    aiApply.disabled = false;
+    try {
+      for (const action of pendingActions) {
+        if (action.type === 'log_medication' || action.type === 'log_medication_done') {
+          await recordMedicationEvent(action.medication_name, action.given_at || new Date().toISOString(), {
+            eventType: action.type === 'log_medication_done' ? 'completed' : 'taken',
+            givenBy: 'Caregiver (assistant)', notes: action.notes || ''
+          });
+        }
+      }
+      applyActions(pendingActions);
+      saveState();
+      render();
+      hideConfirm();
+      toast('Changes saved');
+    } catch (error) {
+      toast(`NOT SAVED: ${error.message}`);
+    } finally {
+      aiApply.disabled = false;
+    }
   });
 
   aiCancel.addEventListener('click', hideConfirm);
@@ -1613,19 +1631,39 @@ void syncRemoteState();
     var meds = getMorningMeds();
     var now = new Date().toISOString();
 
+    state.activityLog = state.activityLog || [];
+    if (painVal > 0) {
+      state.activityLog.push({ type: 'Pain score', text: 'Pain score: ' + painVal + '/10', at: now });
+    }
+    if (notes) {
+      state.activityLog.push({ type: 'Morning note', text: notes, at: now });
+    }
+
     var medIndex = {};
     (state.medicationTemplates || []).forEach(function(m) {
       if (m.name) medIndex[m.name.toLowerCase()] = m;
     });
 
-    for (var medIndexPosition = 0; medIndexPosition < meds.length; medIndexPosition++) {
-      var m = meds[medIndexPosition];
-      var i = medIndexPosition;
+    submitBtn.disabled = true;
+    try {
+      for (var i = 0; i < meds.length; i++) {
+        var selected = document.getElementById('checkin-med-' + i);
+        if (selected && selected.classList.contains('taken')) {
+          await recordMedicationEvent(meds[i].name, now, { givenBy: 'Caregiver (check-in)' });
+        }
+      }
+    } catch (error) {
+      toast('NOT SAVED: ' + error.message);
+      submitBtn.disabled = false;
+      return;
+    }
+    submitBtn.disabled = false;
+
+    meds.forEach(function(m, i) {
       var item = document.getElementById('checkin-med-' + i);
       if (item && item.classList.contains('taken')) {
         var tmpl = medIndex[(m.name || '').toLowerCase()];
         if (tmpl) {
-          if (await recordMedicationEvent(tmpl.name, 'taken', now, 'Taken via morning check-in.')) continue;
           tmpl.lastGivenAt = now;
           tmpl.givenTime = now;
           tmpl.dispensed = true;
@@ -1638,15 +1676,7 @@ void syncRemoteState();
           tmpl.notes = (tmpl.notes || '') + ' | Taken via morning check-in.';
         }
       }
-    }
-
-    state.activityLog = state.activityLog || [];
-    if (painVal > 0) {
-      state.activityLog.push({ type: 'Pain score', text: 'Pain score: ' + painVal + '/10', at: now });
-    }
-    if (notes) {
-      state.activityLog.push({ type: 'Morning note', text: notes, at: now });
-    }
+    });
 
     saveState();
     render();
